@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.pyc
+
+# Mac
+.DS_Store
+._*
+
+# Environnements
+myenv/
+myenv311/
+venv/
+.env
+
+# Data
+data/
+*.tif
+*.svs
+*.zip
+*.npy
+*.npz
+
+# Models
+models/
+*.pt
+*.pth
+*.ckpt
+
+# Outputs
+inference/
+heatmaps/
+runs/myenv311/
+data/
+models/
+*.tif
+*.pt

@@ -1,0 +1,8 @@
+torch
+torchvision
+numpy<2
+scikit-learn
+Pillow
+matplotlib
+scikit-image
+openslide-python
