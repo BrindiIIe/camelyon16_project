@@ -37,7 +37,7 @@ STRIDE = 256
 THUMB_SIZE = (1200, 1200)
 BATCH_SIZE = 64
 
-SAVE_ONLY_ABOVE = 0.40
+SAVE_ONLY_ABOVE = 0.50
 
 device = "mps" if torch.backends.mps.is_available() else "cpu"
 print("device:", device)

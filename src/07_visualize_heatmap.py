@@ -18,11 +18,10 @@ OUTPUT_DIR = Path("../data/inference/heatmaps")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
  # change ici
 WSI_NAMES = [
-   WSI_DIR / "tumor_001.tif",
-    WSI_DIR / "tumor_003.tif",
-    WSI_DIR / "tumor_008.tif",
-    WSI_DIR / "normal_001.tif",
-    WSI_DIR / "normal_002.tif",
+    WSI_DIR / "tumor_006.tif",
+    WSI_DIR / "tumor_007.tif",
+    WSI_DIR / "normal_008.tif",
+    WSI_DIR / "normal_009.tif",
 ]
 THUMB_SIZE = (1200, 1200)
 PATCH_SIZE = 256
@@ -123,9 +122,23 @@ def visualize_one(wsi_path, csv_path, output_fig):
         where=counts > 0
     )
 
+    raw_vals = heatmap[counts > 0]
+
+    if raw_vals.size > 0:
+        print("raw min:", np.min(raw_vals))
+        print("raw max:", np.max(raw_vals))
+        print("raw mean:", np.mean(raw_vals))
+        print("raw p95:", np.percentile(raw_vals, 95))
+        print("raw p99:", np.percentile(raw_vals, 99))
+
     heatmap[counts == 0] = np.nan
-    heatmap[heatmap < 0.1] = np.nan
-    heatmap = gaussian_filter(heatmap, sigma=2)
+
+    # Ne pas masquer au seuil fixe pour l’instant
+    # heatmap[heatmap < 0.1] = np.nan
+
+    heatmap_for_filter = np.nan_to_num(heatmap, nan=0.0)
+    heatmap = gaussian_filter(heatmap_for_filter, sigma=2)
+    heatmap[counts == 0] = np.nan
     valid_vals = heatmap[~np.isnan(heatmap)]
 
     print("nb pixels couverts:", np.sum(~np.isnan(heatmap)))

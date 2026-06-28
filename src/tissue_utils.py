@@ -41,7 +41,7 @@ PATCH_SIZE = 256
 STRIDE = 256
 
 MAX_TUMOR_SLIDES = 10
-MAX_NORMAL_SLIDES = 5
+MAX_NORMAL_SLIDES = 10
 
 MAX_NORMAL_PER_NORMAL_SLIDE = 200
 MAX_TUMOR_PER_TUMOR_SLIDE = None   # ex: 500
@@ -374,7 +374,7 @@ def process_slide(
     # Cas lame normale
     else:
         if max_normal_per_slide is not None and len(normal_centers) > max_normal_per_slide:
-            normal_sample = random.sample(normal_centers, min(len(normal_centers), len(tumor_centers)))
+            normal_sample = random.sample(normal_centers, max_normal_per_slide)
         else:
             normal_sample = normal_centers
 

@@ -38,16 +38,11 @@ OUTPUT_DIR = Path("../data/inference")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 WSI_NAMES = [
-    "normal_001.tif",
-    "normal_002.tif",
-    "normal_003.tif",
-    "normal_004.tif",
-    "normal_005.tif",
-    "normal_006.tif",
-    "normal_007.tif",
+   
+    "tumor_006.tif",
+    "tumor_007.tif",
     "normal_008.tif",
     "normal_009.tif",
-    "normal_010.tif",
 ]
 
 PATCH_SIZE = 256

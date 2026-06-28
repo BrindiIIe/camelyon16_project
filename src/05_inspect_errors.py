@@ -9,8 +9,11 @@ device = "cpu"
 THRESHOLD = 0.2
 
 # ===== OUTPUT DIR =====
-Path("../errors/fn").mkdir(parents=True, exist_ok=True)
-Path("../errors/fp").mkdir(parents=True, exist_ok=True)
+Path("../errors_iter1/fn").mkdir(parents=True, exist_ok=True)
+Path("../errors_iter1/fp").mkdir(parents=True, exist_ok=True)
+
+def is_valid_file(path):
+    return path.endswith(".png") and not Path(path).name.startswith("._")
 
 # ===== TRANSFORM =====
 transform = transforms.Compose([
@@ -20,8 +23,9 @@ transform = transforms.Compose([
 
 # ===== DATA =====
 dataset = datasets.ImageFolder(
-    root="../data/patches_split/val",
-    transform=transform
+    root="../data/patches_base/test",
+    transform=transform,
+    is_valid_file=is_valid_file
 )
 
 loader = DataLoader(dataset, batch_size=1, shuffle=False)
@@ -36,6 +40,8 @@ model.eval()
 # ===== LOOP =====
 fn_count = 0
 fp_count = 0
+
+
 
 with torch.no_grad():
     for i, (img, label) in enumerate(loader):
@@ -52,12 +58,12 @@ with torch.no_grad():
         # ===== FALSE NEGATIVE =====
         if label == 1 and pred == 0:
             fn_count += 1
-            Image.open(path).save(f"../errors/fn/FN_{fn_count}_{prob:.2f}_{filename}")
+            Image.open(path).save(f"../errors_iter1/fn/FN_{fn_count}_{prob:.2f}_{filename}")
 
         # ===== FALSE POSITIVE =====
         if label == 0 and pred == 1:
             fp_count += 1
-            Image.open(path).save(f"../errors/fp/FP_{fp_count}_{prob:.2f}_{filename}")
+            Image.open(path).save(f"../errors_iter1/fp/FP_{fp_count}_{prob:.2f}_{filename}")
 
 print(f"False negatives: {fn_count}")
 print(f"False positives: {fp_count}")

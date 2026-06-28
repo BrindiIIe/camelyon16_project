@@ -16,14 +16,21 @@ CONTACT_SHEET_DIR = OUTPUT_DIR / "contact_sheets"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 CONTACT_SHEET_DIR.mkdir(parents=True, exist_ok=True)
 
-LOW = 0.6
-HIGH = 0.95
+WSI_NAMES = [
+   #"normal_007.tif",
+    "normal_008.tif",
+    "normal_009.tif",
+    #"normal_010.tif",
+]
+
+LOW = 0.5
+HIGH = 1
 PATCH_SIZE = 256
-MAX_PER_SLIDE = 100
+MAX_PER_SLIDE = 50
 RANDOM_SEED = 42
 
 MIN_TISSUE_DISTANCE = 8      # distance min au bord du tissu sur thumbnail
-MIN_DIST_BETWEEN = 2000      # distance min entre 2 centres en level 0
+MIN_DIST_BETWEEN = 1000      # distance min entre 2 centres en level 0
 MIN_TISSUE_FRACTION = 0.40   # fraction minimale de tissu dans le patch
 THUMB_SIZE = (1200, 1200)
 
@@ -31,28 +38,23 @@ CONTACT_PATCH_SIZE = 128
 CONTACT_NCOLS = 5
 
 
-def extract_patch(slide, center_x, center_y, patch_size=256, level=0):
-    half = patch_size // 2
-    top_left_x = center_x - half
-    top_left_y = center_y - half
-
+def extract_patch(slide, x, y, patch_size=256, level=0):
     patch = slide.read_region(
-        (top_left_x, top_left_y),
+        (x, y),
         level,
         (patch_size, patch_size)
     ).convert("RGB")
-
     return patch
 
 
-def patch_within_bounds(slide, center_x, center_y, patch_size=256):
+def patch_within_bounds(slide, x, y, patch_size=256):
     half = patch_size // 2
     w, h = slide.dimensions
     return (
-        center_x - half >= 0 and
-        center_y - half >= 0 and
-        center_x + half < w and
-        center_y + half < h
+        x - half >= 0 and
+        y - half >= 0 and
+        x + half < w and
+        y + half < h
     )
 
 
@@ -61,10 +63,15 @@ def tissue_fraction_rgb(patch_np, white_thresh=220):
     tissue = gray < white_thresh
     return tissue.mean()
 
+def get_center(x, y, patch_size=256):
+    return x + patch_size // 2, y + patch_size // 2
+
 
 def is_far_enough(x, y, selected, min_dist):
+    cx, cy = get_center(x, y, PATCH_SIZE)
     for s in selected:
-        if (x - s["x"])**2 + (y - s["y"])**2 <= min_dist**2:
+        sx, sy = get_center(s["x"], s["y"], PATCH_SIZE)
+        if (cx - sx)**2 + (cy - sy)**2 <= min_dist**2:
             return False
     return True
 
@@ -115,7 +122,10 @@ def main():
     random.seed(RANDOM_SEED)
 
     total_saved = 0
-    normal_wsi_files = sorted(WSI_DIR.glob("normal_*.tif"))
+    normal_wsi_files = []
+    for name in WSI_NAMES:
+        wsi_path = WSI_DIR / name
+        normal_wsi_files.append(wsi_path)
 
     if not normal_wsi_files:
         raise FileNotFoundError(f"Aucune lame normale trouvée dans {WSI_DIR}")

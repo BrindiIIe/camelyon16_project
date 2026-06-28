@@ -1,12 +1,10 @@
 import torch
 import random
-import csv
 from pathlib import Path
 from collections import Counter
-from PIL import Image
 
 from torch import nn
-from torch.utils.data import DataLoader, Subset, Dataset
+from torch.utils.data import DataLoader, Subset
 from torchvision import transforms, models
 from torchvision.datasets import ImageFolder
 
@@ -34,39 +32,10 @@ def is_valid_file(path):
     return path.endswith(".png") and not Path(path).name.startswith("._")
 
 
-class CSVPatchDataset(Dataset):
-    def __init__(self, csv_file, transform=None):
-        self.samples = []
-        self.transform = transform
-        self.classes = ["normal", "tumor"]
-
-        with open(csv_file, "r", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                self.samples.append((row["path"], int(row["label"])))
-
-    def __len__(self):
-        return len(self.samples)
-
-    def __getitem__(self, idx):
-        path, label = self.samples[idx]
-        img = Image.open(path).convert("RGB")
-
-        if self.transform:
-            img = self.transform(img)
-
-        return img, label
-
-
 def main():
-    # ===== CLEAN =====
-    remove_mac_hidden_files("../data/patches_split")
-    remove_mac_hidden_files("../data/hard_negatives")
-
-    # ===== CREATE MODEL DIR =====
+    remove_mac_hidden_files("../data/patches_iter1")
     Path("../models").mkdir(parents=True, exist_ok=True)
 
-    # ===== TRANSFORMS =====
     train_transform = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.RandomHorizontalFlip(),
@@ -82,19 +51,21 @@ def main():
         transforms.ToTensor(),
     ])
 
-    # ===== DATA =====
-    train_data_full = CSVPatchDataset(
-        csv_file="../data/train_dataset.csv",
-        transform=train_transform
+    train_data_full = ImageFolder(
+        root="../data/patches_iter1/train",
+        transform=train_transform,
+        is_valid_file=is_valid_file
     )
 
     val_data_full = ImageFolder(
-        root="../data/patches_split/val",
+        root="../data/patches_base/val",
         transform=val_transform,
         is_valid_file=is_valid_file
     )
 
-    # ===== SUBSETS =====
+    print("Train classes:", train_data_full.class_to_idx)
+    print("Val classes:", val_data_full.class_to_idx)
+
     max_train_samples = 4000
     max_val_samples = 500
     random.seed(42)
@@ -115,19 +86,16 @@ def main():
     train_loader = DataLoader(train_data, batch_size=32, shuffle=True)
     val_loader = DataLoader(val_data, batch_size=32, shuffle=False)
 
-    # ===== DISTRIBUTION CORRECTE =====
     train_labels = [train_data_full.samples[i][1] for i in train_indices]
     val_labels = [val_data_full.samples[i][1] for i in val_indices]
 
     print("Train distribution:", Counter(train_labels))
     print("Val distribution:", Counter(val_labels))
 
-    # ===== MODEL =====
     model = models.resnet18(weights="IMAGENET1K_V1")
     model.fc = nn.Linear(model.fc.in_features, 2)
     model = model.to(device)
 
-    # ===== LOSS =====
     criterion = nn.CrossEntropyLoss(
         weight=torch.tensor([1.0, 2.0], dtype=torch.float32).to(device)
     )
@@ -137,7 +105,6 @@ def main():
     best_val_f1 = 0.0
 
     for epoch in range(epochs):
-        # ===== TRAIN =====
         model.train()
         train_loss = 0.0
 
@@ -154,9 +121,7 @@ def main():
 
             train_loss += loss.item() * images.size(0)
 
-        # ===== VAL =====
         model.eval()
-        val_loss = 0.0
         all_preds = []
         all_labels = []
 
@@ -166,34 +131,29 @@ def main():
                 labels = labels.to(device)
 
                 outputs = model(images)
-                loss = criterion(outputs, labels)
-
-                val_loss += loss.item() * images.size(0)
-
                 probs = torch.softmax(outputs, dim=1)[:, 1]
                 preds = (probs > THRESHOLD).int()
 
                 all_preds.extend(preds.cpu().numpy())
                 all_labels.extend(labels.cpu().numpy())
 
-        # ===== METRICS =====
         tumor_f1 = f1_score(all_labels, all_preds, pos_label=1, zero_division=0)
         tumor_recall = recall_score(all_labels, all_preds, pos_label=1, zero_division=0)
         tumor_precision = precision_score(all_labels, all_preds, pos_label=1, zero_division=0)
 
+        avg_train_loss = train_loss / len(train_data)
+
         print(f"\nEpoch {epoch+1}/{epochs}")
-        print(f"Train loss: {train_loss:.4f}")
+        print(f"Train loss: {avg_train_loss:.4f}")
         print(f"Tumor precision: {tumor_precision:.4f}")
         print(f"Tumor recall:    {tumor_recall:.4f}")
         print(f"Tumor f1:        {tumor_f1:.4f}")
 
-        # ===== SAVE BEST =====
         if tumor_f1 > best_val_f1:
             best_val_f1 = tumor_f1
             torch.save(model.state_dict(), "../models/best_resnet18_patch.pt")
             print("Best model saved.")
 
-    # ===== FINAL EVAL =====
     print("\nReload best model...")
     model.load_state_dict(torch.load("../models/best_resnet18_patch.pt", map_location=device))
     model.eval()

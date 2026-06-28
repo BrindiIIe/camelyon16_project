@@ -5,24 +5,20 @@ import openslide
 import matplotlib.pyplot as plt
 
 
-WSI_PATH = Path("../data/wsi/normal_002.tif")   # change ici
-CSV_PATH = Path("../data/inference/normal_002_probs.csv")
+WSI_PATH = Path("../data/wsi/normal_009.tif")
+CSV_PATH = Path("../data/inference/normal_009_probs.csv")
+OUTPUT_PATH = Path("../data/inference/top_patches_normal_009.png")
+
 PATCH_SIZE = 256
-TOP_K = 12
+TOP_K = 20
 
 
-def extract_patch(slide, center_x, center_y, patch_size=256, level=0):
-    half = patch_size // 2
-    top_left_x = center_x - half
-    top_left_y = center_y - half
-
-    patch = slide.read_region(
-        (top_left_x, top_left_y),
+def extract_patch(slide, x, y, patch_size=256, level=0):
+    return slide.read_region(
+        (x, y),
         level,
         (patch_size, patch_size)
     ).convert("RGB")
-
-    return patch
 
 
 def main():
@@ -47,6 +43,7 @@ def main():
     slide = openslide.OpenSlide(str(WSI_PATH))
 
     plt.figure(figsize=(12, 10))
+
     for i, row in enumerate(rows, 1):
         patch = extract_patch(
             slide,
@@ -56,15 +53,21 @@ def main():
             level=0
         )
 
-        plt.subplot(3, 4, i)
+        plt.subplot((TOP_K + 3) // 4, 4, i)
         plt.imshow(patch)
-        plt.title(f"p={row['prob']:.3f}")
+        plt.title(
+            f"p={row['prob']:.3f}\nx={row['x']} y={row['y']}",
+            fontsize=8
+        )
         plt.axis("off")
 
     plt.suptitle(f"Top {TOP_K} patches - {WSI_PATH.name}")
     plt.tight_layout()
-    plt.show()
 
+    plt.savefig(OUTPUT_PATH, dpi=200)
+    print(f"saved: {OUTPUT_PATH}")
+
+    plt.show()
     slide.close()
 
 
