@@ -297,6 +297,28 @@ normal WSI that had iter2 micro false positives. On CPU, this was too slow for
 interactive iteration because `05_infer_wsi.py` writes a CSV only after each
 whole slide finishes and currently does not report batch progress.
 
+`src/05_infer_wsi.py` was then updated to make WSI inference easier to monitor
+and interrupt:
+
+- writes a `*_probs.partial.csv` during each slide instead of keeping all
+  results only in memory
+- renames the partial file to `*_probs.csv` only when the slide is complete
+- supports `--resume` to continue from an interrupted partial CSV
+- supports `--progress-every N` to print batch progress, throughput, and ETA
+
+Recommended iter4 targeted WSI command after this update:
+
+```bash
+myenv311/bin/python -u src/05_infer_wsi.py \
+  --model-path models/best_resnet18_patch_iter4.pt \
+  --output-dir data/inference_iter4_micro_normals \
+  --device cpu \
+  --batch-size 256 \
+  --progress-every 5 \
+  --resume \
+  --slides normal_004.tif normal_005.tif normal_006.tif normal_007.tif normal_008.tif normal_009.tif normal_010.tif
+```
+
 A faster targeted check was added:
 
 ```bash

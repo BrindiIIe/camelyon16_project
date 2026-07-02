@@ -8,6 +8,7 @@ from tissue_utils import (
 from pathlib import Path
 import argparse
 import csv
+import time
 
 import torch
 from torch import nn
@@ -129,6 +130,17 @@ def parse_args():
         action="store_true",
         help="Recompute CSVs even when they already exist.",
     )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Resume from an existing .partial.csv file for an interrupted slide.",
+    )
+    parser.add_argument(
+        "--progress-every",
+        type=int,
+        default=25,
+        help="Print progress every N batches.",
+    )
     return parser.parse_args()
 
 
@@ -149,13 +161,20 @@ def infer_one_slide(
     stride=STRIDE,
     batch_size=BATCH_SIZE,
     overwrite=False,
+    resume=False,
+    progress_every=25,
 ):
     output_csv = output_dir / f"{wsi_path.stem}_probs.csv"
+    partial_csv = output_dir / f"{wsi_path.stem}_probs.partial.csv"
 
     if output_csv.exists() and not overwrite:
         print("CSV deja present, skip:", output_csv, flush=True)
         return
 
+    if overwrite and partial_csv.exists() and not resume:
+        partial_csv.unlink()
+
+    output_dir.mkdir(parents=True, exist_ok=True)
     slide = openslide.OpenSlide(str(wsi_path))
 
     thumb = slide.get_thumbnail(THUMB_SIZE).convert("RGB")
@@ -185,33 +204,80 @@ def infer_one_slide(
         transforms.ToTensor(),
     ])
 
-    results = []
+    processed = set()
+    if resume and partial_csv.exists():
+        with open(partial_csv, "r", newline="") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                processed.add((int(float(row["x"])), int(float(row["y"]))))
+        print("reprise partial:", partial_csv)
+        print("patches deja traites:", len(processed), flush=True)
 
-    with torch.no_grad():
-        for i in range(0, len(kept_centers), batch_size):
-            batch_centers = kept_centers[i:i + batch_size]
+    centers_to_process = [
+        (x, y)
+        for x, y in kept_centers
+        if (x, y) not in processed
+    ]
 
-            images = []
-            for x, y in batch_centers:
-                patch = extract_patch(slide, x, y, patch_size=PATCH_SIZE, level=0)
-                images.append(transform(patch))
+    total_to_process = len(centers_to_process)
+    total_batches = (total_to_process + batch_size - 1) // batch_size
+    print("a traiter:", total_to_process)
+    print("batch_size:", batch_size)
+    print("batches:", total_batches, flush=True)
 
-            if not images:
-                continue
+    if total_to_process == 0:
+        if partial_csv.exists() and not output_csv.exists():
+            partial_csv.replace(output_csv)
+            print("CSV finalise depuis partial:", output_csv, flush=True)
+        slide.close()
+        return
 
-            images = torch.stack(images).to(device)
-            outputs = model(images)
-            probs = torch.softmax(outputs, dim=1)[:, 1].cpu().numpy()
+    write_header = not partial_csv.exists() or partial_csv.stat().st_size == 0
+    start_time = time.time()
 
-            for (x, y), p in zip(batch_centers, probs):
-                results.append((x, y, float(p)))
-
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    with open(output_csv, "w", newline="") as f:
+    with open(partial_csv, "a", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["x", "y", "prob_tumor"])
-        writer.writerows(results)
+        if write_header:
+            writer.writerow(["x", "y", "prob_tumor"])
+
+        with torch.no_grad():
+            for batch_idx, i in enumerate(range(0, total_to_process, batch_size), start=1):
+                batch_centers = centers_to_process[i:i + batch_size]
+
+                images = []
+                for x, y in batch_centers:
+                    patch = extract_patch(slide, x, y, patch_size=PATCH_SIZE, level=0)
+                    images.append(transform(patch))
+
+                if not images:
+                    continue
+
+                images = torch.stack(images).to(device)
+                outputs = model(images)
+                probs = torch.softmax(outputs, dim=1)[:, 1].cpu().numpy()
+
+                writer.writerows(
+                    (x, y, float(p))
+                    for (x, y), p in zip(batch_centers, probs)
+                )
+                f.flush()
+
+                if batch_idx == 1 or batch_idx % progress_every == 0 or batch_idx == total_batches:
+                    done = min(batch_idx * batch_size, total_to_process)
+                    elapsed = time.time() - start_time
+                    patches_per_sec = done / elapsed if elapsed else 0.0
+                    remaining = total_to_process - done
+                    eta_sec = remaining / patches_per_sec if patches_per_sec else 0.0
+                    print(
+                        f"progress {wsi_path.stem}: "
+                        f"{done}/{total_to_process} patches "
+                        f"({batch_idx}/{total_batches} batches), "
+                        f"{patches_per_sec:.1f} patches/s, "
+                        f"ETA {eta_sec/60:.1f} min",
+                        flush=True,
+                    )
+
+    partial_csv.replace(output_csv)
 
     slide.close()
     print("CSV sauvegarde:", output_csv, flush=True)
@@ -248,6 +314,8 @@ def main():
             stride=args.stride,
             batch_size=args.batch_size,
             overwrite=args.overwrite,
+            resume=args.resume,
+            progress_every=args.progress_every,
         )
 
 
