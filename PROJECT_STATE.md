@@ -290,6 +290,45 @@ Output summary:
 
 - `outputs/iter4_training_summary.md`
 
+## Iter4 Micro False-Positive Patch Check
+
+Full WSI inference with `iter4` was attempted on the 20 WSI, then on the 7
+normal WSI that had iter2 micro false positives. On CPU, this was too slow for
+interactive iteration because `05_infer_wsi.py` writes a CSV only after each
+whole slide finishes and currently does not report batch progress.
+
+A faster targeted check was added:
+
+```bash
+myenv311/bin/python -u src/14_compare_micro_fp_patch_probs.py --device cpu
+```
+
+This compares `iter2` and `iter4` probabilities on the 37 already extracted
+micro false-positive review patches from `data/review/micro_fp_iter2/`.
+
+Outputs:
+
+- `outputs/micro_fp_iter2_vs_iter4/patch_probs.csv`
+- `outputs/micro_fp_iter2_vs_iter4/summary.md`
+
+Key finding:
+
+- On the two reviewed `yes` components used as hard negatives for `iter4`,
+  probabilities dropped dramatically:
+  - `normal_006` component 1: mean iter2 `1.000`, mean iter4 `0.034`
+  - `normal_009` component 2: mean iter2 `0.995`, mean iter4 `0.013`
+- Some non-included false positives remain high:
+  - `normal_007` component 1: mean iter2 `0.998`, mean iter4 `0.999`
+  - `normal_008` component 1: mean iter2 `0.998`, mean iter4 `0.923`
+
+Interpretation:
+
+- `iter4` learned the specific hard negatives it was trained on.
+- It does not yet prove better WSI-level specificity because some other benign
+  mimics remain high-confidence.
+- Before another full WSI run, improve `05_infer_wsi.py` with progress logging
+  and/or faster batching.
+
 Interpretation:
 
 - Use `large_component` as the main automatic WSI decision rule.
