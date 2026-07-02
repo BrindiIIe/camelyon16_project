@@ -9,7 +9,6 @@ import openslide
 import numpy as np
 import shutil
 
-from matplotlib.path import Path as MplPath
 from skimage.color import rgb2gray
 from skimage.filters import threshold_otsu
 from skimage.measure import label, regionprops
@@ -31,11 +30,6 @@ WSI_DIR = Path("../data/wsi")
 ANNOTATIONS_DIR = Path("../data/annotations")
 OUTPUT_TUMOR = Path("../data/patches/train/tumor")
 OUTPUT_NORMAL = Path("../data/patches/train/normal")
-# nettoyage du dataset précédent
-shutil.rmtree("../data/patches", ignore_errors=True)
-
-OUTPUT_TUMOR.mkdir(parents=True, exist_ok=True)
-OUTPUT_NORMAL.mkdir(parents=True, exist_ok=True)
 
 PATCH_SIZE = 256
 STRIDE = 256
@@ -259,6 +253,8 @@ def parse_polygons_from_xml(xml_path):
 
 
 def build_polygon_paths(polygons):
+    from matplotlib.path import Path as MplPath
+
     return [MplPath(poly) for poly in polygons]
 
 
@@ -397,6 +393,11 @@ def process_slide(
 
 
 def main():
+    # Nettoyage volontaire uniquement quand ce script est execute directement.
+    shutil.rmtree("../data/patches", ignore_errors=True)
+    OUTPUT_TUMOR.mkdir(parents=True, exist_ok=True)
+    OUTPUT_NORMAL.mkdir(parents=True, exist_ok=True)
+
     tumor_files = sorted(
         [p for p in WSI_DIR.glob("tumor_*.tif") if not is_hidden_mac_file(p)]
     )[:MAX_TUMOR_SLIDES]

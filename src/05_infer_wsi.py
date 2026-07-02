@@ -6,12 +6,12 @@ from tissue_utils import (
     level0_to_thumbnail_coords,
 )
 from pathlib import Path
+import argparse
 import csv
 
 import torch
 from torch import nn
 from torchvision import transforms, models
-from PIL import Image
 import openslide
 import numpy as np
 
@@ -32,26 +32,20 @@ from scipy.ndimage import binary_fill_holes
 # =========================
 # CONFIG
 # =========================
-WSI_DIR = Path("../data/wsi")   # à changer
-MODEL_PATH = Path("../models/best_resnet18_patch.pt")
-OUTPUT_DIR = Path("../data/inference")
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+WSI_DIR = PROJECT_ROOT / "data/wsi"
+MODEL_PATH = PROJECT_ROOT / "models/best_resnet18_patch_iter2.pt"
+OUTPUT_DIR = PROJECT_ROOT / "data/inference_iter2"
 
-WSI_NAMES = [
-   
-    "tumor_006.tif",
-    "tumor_007.tif",
-    "normal_008.tif",
-    "normal_009.tif",
+DEFAULT_WSI_NAMES = [
+    *[f"tumor_{i:03d}.tif" for i in range(1, 11)],
+    *[f"normal_{i:03d}.tif" for i in range(1, 11)],
 ]
 
 PATCH_SIZE = 256
 STRIDE = 128
 THUMB_SIZE = (1200, 1200)
 BATCH_SIZE = 32
-
-device = "cpu"
-print("device:", device)
 
 # OUTPUT_CSV.parent.mkdir(parents=True, exist_ok=True)
 
@@ -81,17 +75,86 @@ def clear_border_margin(mask, margin=25):
 # =========================
 # MODEL
 # =========================
-def build_model():
+def resolve_device(requested):
+    if requested == "auto":
+        return "mps" if torch.backends.mps.is_available() else "cpu"
+    return requested
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Run patch-level inference on WSI files and write probability CSVs."
+    )
+    parser.add_argument(
+        "--model-path",
+        default=str(MODEL_PATH),
+        help="Checkpoint to use. Defaults to the iter2 checkpoint.",
+    )
+    parser.add_argument(
+        "--wsi-dir",
+        default=str(WSI_DIR),
+        help="Directory containing WSI .tif files.",
+    )
+    parser.add_argument(
+        "--output-dir",
+        default=str(OUTPUT_DIR),
+        help="Directory where *_probs.csv files are written.",
+    )
+    parser.add_argument(
+        "--slides",
+        nargs="+",
+        default=DEFAULT_WSI_NAMES,
+        help="WSI filenames to process.",
+    )
+    parser.add_argument(
+        "--stride",
+        type=int,
+        default=STRIDE,
+        help="Stride in level-0 pixels.",
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=BATCH_SIZE,
+        help="Batch size for patch inference.",
+    )
+    parser.add_argument(
+        "--device",
+        choices=["auto", "cpu", "mps"],
+        default="auto",
+        help="Device used for inference.",
+    )
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Recompute CSVs even when they already exist.",
+    )
+    return parser.parse_args()
+
+
+def build_model(model_path, device):
     model = models.resnet18(weights=None)
     model.fc = nn.Linear(model.fc.in_features, 2)
-    state_dict = torch.load(MODEL_PATH, map_location=device)
+    state_dict = torch.load(model_path, map_location=device)
     model.load_state_dict(state_dict)
     model.to(device)
     model.eval()
     return model
 
-def infer_one_slide(wsi_path, model):
-    output_csv = OUTPUT_DIR / f"{wsi_path.stem}_probs.csv"
+def infer_one_slide(
+    wsi_path,
+    model,
+    output_dir,
+    device,
+    stride=STRIDE,
+    batch_size=BATCH_SIZE,
+    overwrite=False,
+):
+    output_csv = output_dir / f"{wsi_path.stem}_probs.csv"
+
+    if output_csv.exists() and not overwrite:
+        print("CSV deja present, skip:", output_csv, flush=True)
+        return
 
     slide = openslide.OpenSlide(str(wsi_path))
 
@@ -103,7 +166,7 @@ def infer_one_slide(wsi_path, model):
     candidate_centers = generate_candidate_centers(
         slide_dims=slide.dimensions,
         patch_size=PATCH_SIZE,
-        stride=STRIDE
+        stride=stride
     )
 
     kept_centers = keep_centers_in_tissue(
@@ -115,7 +178,7 @@ def infer_one_slide(wsi_path, model):
 
     print(f"\nslide: {wsi_path.name}")
     print("total candidats:", len(candidate_centers))
-    print("dans le tissu:", len(kept_centers))
+    print("dans le tissu:", len(kept_centers), flush=True)
 
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
@@ -125,13 +188,16 @@ def infer_one_slide(wsi_path, model):
     results = []
 
     with torch.no_grad():
-        for i in range(0, len(kept_centers), BATCH_SIZE):
-            batch_centers = kept_centers[i:i + BATCH_SIZE]
+        for i in range(0, len(kept_centers), batch_size):
+            batch_centers = kept_centers[i:i + batch_size]
 
             images = []
             for x, y in batch_centers:
                 patch = extract_patch(slide, x, y, patch_size=PATCH_SIZE, level=0)
                 images.append(transform(patch))
+
+            if not images:
+                continue
 
             images = torch.stack(images).to(device)
             outputs = model(images)
@@ -140,27 +206,49 @@ def infer_one_slide(wsi_path, model):
             for (x, y), p in zip(batch_centers, probs):
                 results.append((x, y, float(p)))
 
+    output_dir.mkdir(parents=True, exist_ok=True)
+
     with open(output_csv, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["x", "y", "prob_tumor"])
         writer.writerows(results)
 
     slide.close()
-    print("CSV sauvegardé:", output_csv)
+    print("CSV sauvegarde:", output_csv, flush=True)
 
 def main():
+    args = parse_args()
 
-    if not MODEL_PATH.exists():
-        raise FileNotFoundError(f"Modèle introuvable: {MODEL_PATH}")
+    device = resolve_device(args.device)
+    model_path = Path(args.model_path)
+    wsi_dir = Path(args.wsi_dir)
+    output_dir = Path(args.output_dir)
 
-    model = build_model()
+    print("device:", device, flush=True)
+    print("model_path:", model_path, flush=True)
+    print("wsi_dir:", wsi_dir, flush=True)
+    print("output_dir:", output_dir, flush=True)
+    print("slides:", len(args.slides), flush=True)
 
-    for name in WSI_NAMES:
-        wsi_path = WSI_DIR / name
+    if not model_path.exists():
+        raise FileNotFoundError(f"Modele introuvable: {model_path}")
+
+    model = build_model(model_path, device)
+
+    for name in args.slides:
+        wsi_path = wsi_dir / name
         if not wsi_path.exists():
             print("WSI introuvable, skip:", wsi_path)
             continue
-        infer_one_slide(wsi_path, model)
+        infer_one_slide(
+            wsi_path,
+            model,
+            output_dir,
+            device,
+            stride=args.stride,
+            batch_size=args.batch_size,
+            overwrite=args.overwrite,
+        )
 
 
 if __name__ == "__main__":

@@ -1,0 +1,5 @@
+experiment,train_dir,train_normal,train_tumor,train_total,checkpoint,checkpoint_status
+baseline,/Volumes/TX/camelyon16_project/data/patches_base/train,595,275,870,/Volumes/TX/camelyon16_project/models/best_resnet18_patch_baseline.pt,found
+iter1,/Volumes/TX/camelyon16_project/data/patches_iter1/train,611,285,896,/Volumes/TX/camelyon16_project/models/best_resnet18_patch_iter1.pt,found
+iter2,/Volumes/TX/camelyon16_project/data/patches_iter2/train,612,287,899,/Volumes/TX/camelyon16_project/models/best_resnet18_patch_iter2.pt,found
+iter3,/Volumes/TX/camelyon16_project/data/patches_iter3/train,650,287,937,/Volumes/TX/camelyon16_project/models/best_resnet18_patch_iter3.pt,found

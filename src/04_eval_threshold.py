@@ -12,7 +12,7 @@ transform = transforms.Compose([
 ])
 
 val_data = datasets.ImageFolder(
-    root="../data/patches_split/val",
+    root="../data/patches_base/val",
     transform=transform
 )
 

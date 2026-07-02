@@ -1,8 +1,4 @@
-from pathlib import Path
-
-import openslide
 import numpy as np
-import matplotlib.pyplot as plt
 
 from skimage.color import rgb2gray
 from skimage.filters import threshold_otsu
@@ -76,6 +72,11 @@ def make_tissue_mask(rgb_image):
 
 
 def main():
+    from pathlib import Path
+
+    import openslide
+    import matplotlib.pyplot as plt
+
     if not Path(WSI_PATH).exists():
         raise FileNotFoundError(f"WSI introuvable: {WSI_PATH}")
 

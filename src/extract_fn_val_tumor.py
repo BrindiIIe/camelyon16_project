@@ -11,7 +11,7 @@ from torchvision.datasets import ImageFolder
 device = "mps" if torch.backends.mps.is_available() else "cpu"
 print("device:", device)
 
-VAL_DIR = "../data/patches_split/val"
+VAL_DIR = "../data/patches_base/val"
 MODEL_PATH = "../models/best_resnet18_patch.pt"
 OUTPUT_DIR = Path("../data/review/false_negatives_val_tumor")
 

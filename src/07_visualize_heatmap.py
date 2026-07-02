@@ -1,5 +1,6 @@
 from pathlib import Path
 from matplotlib.patches import Polygon
+import argparse
 import csv
 import xml.etree.ElementTree as ET
 import openslide
@@ -11,17 +12,15 @@ from scipy.ndimage import gaussian_filter
 # =========================
 # CONFIG
 # =========================
-XML_DIR = Path("../data/annotations")
-WSI_DIR = Path("../data/wsi")
-CSV_DIR = Path("../data/inference")
-OUTPUT_DIR = Path("../data/inference/heatmaps")
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
- # change ici
-WSI_NAMES = [
-    WSI_DIR / "tumor_006.tif",
-    WSI_DIR / "tumor_007.tif",
-    WSI_DIR / "normal_008.tif",
-    WSI_DIR / "normal_009.tif",
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+XML_DIR = PROJECT_ROOT / "data/annotations"
+WSI_DIR = PROJECT_ROOT / "data/wsi"
+CSV_DIR = PROJECT_ROOT / "data/inference_iter2"
+OUTPUT_DIR = PROJECT_ROOT / "data/inference_iter2/heatmaps"
+
+DEFAULT_WSI_NAMES = [
+    *[f"tumor_{i:03d}.tif" for i in range(1, 11)],
+    *[f"normal_{i:03d}.tif" for i in range(1, 11)],
 ]
 THUMB_SIZE = (1200, 1200)
 PATCH_SIZE = 256
@@ -66,7 +65,7 @@ def level0_to_thumbnail_coords_float(x, y, full_size, thumb_size):
     return tx, ty
 
 
-def visualize_one(wsi_path, csv_path, output_fig):
+def visualize_one(wsi_path, csv_path, output_fig, show=False):
     if not wsi_path.exists():
         raise FileNotFoundError(f"WSI introuvable: {wsi_path}")
 
@@ -193,16 +192,57 @@ def visualize_one(wsi_path, csv_path, output_fig):
             )
             ax.add_patch(patch)
     plt.tight_layout()
+    output_fig.parent.mkdir(parents=True, exist_ok=True)
     plt.savefig(output_fig, dpi=200, bbox_inches="tight")
-    plt.show()
+    if show:
+        plt.show()
+    plt.close()
     slide.close()
     print("Heatmap sauvegardée:", output_fig)
 
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Generate heatmap overlays from WSI inference CSV files."
+    )
+    parser.add_argument(
+        "--wsi-dir",
+        default=str(WSI_DIR),
+        help="Directory containing WSI .tif files.",
+    )
+    parser.add_argument(
+        "--csv-dir",
+        default=str(CSV_DIR),
+        help="Directory containing *_probs.csv files.",
+    )
+    parser.add_argument(
+        "--output-dir",
+        default=str(OUTPUT_DIR),
+        help="Directory where heatmap PNG files are written.",
+    )
+    parser.add_argument(
+        "--slides",
+        nargs="+",
+        default=DEFAULT_WSI_NAMES,
+        help="WSI filenames to visualize.",
+    )
+    parser.add_argument(
+        "--show",
+        action="store_true",
+        help="Show matplotlib windows while generating figures.",
+    )
+    return parser.parse_args()
+
+
 def main():
-    for wsi_path in WSI_NAMES:
-        wsi_path = Path(wsi_path)
-        csv_path = CSV_DIR / f"{wsi_path.stem}_probs.csv"
-        output_fig = OUTPUT_DIR / f"{wsi_path.stem}_heatmap.png"
+    args = parse_args()
+    wsi_dir = Path(args.wsi_dir)
+    csv_dir = Path(args.csv_dir)
+    output_dir = Path(args.output_dir)
+
+    for name in args.slides:
+        wsi_path = wsi_dir / name
+        csv_path = csv_dir / f"{wsi_path.stem}_probs.csv"
+        output_fig = output_dir / f"{wsi_path.stem}_heatmap.png"
 
         if not csv_path.exists():
             print("CSV manquant, skip:", csv_path)
@@ -210,7 +250,7 @@ def main():
 
         print("\nTraitement:", wsi_path.name)
 
-        visualize_one(wsi_path, csv_path, output_fig)
+        visualize_one(wsi_path, csv_path, output_fig, show=args.show)
         
         print("→ saved:", output_fig)
 
