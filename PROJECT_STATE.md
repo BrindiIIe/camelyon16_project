@@ -319,6 +319,33 @@ myenv311/bin/python -u src/05_infer_wsi.py \
   --slides normal_004.tif normal_005.tif normal_006.tif normal_007.tif normal_008.tif normal_009.tif normal_010.tif
 ```
 
+Full 20-slide iter4 WSI inference was launched with:
+
+```bash
+myenv311/bin/python -u src/05_infer_wsi.py \
+  --model-path models/best_resnet18_patch_iter4.pt \
+  --output-dir data/inference_iter4 \
+  --device cpu \
+  --batch-size 256 \
+  --progress-every 5 \
+  --resume \
+  --slides tumor_001.tif tumor_002.tif tumor_003.tif tumor_004.tif tumor_005.tif tumor_006.tif tumor_007.tif tumor_008.tif tumor_009.tif tumor_010.tif normal_001.tif normal_002.tif normal_003.tif normal_004.tif normal_005.tif normal_006.tif normal_007.tif normal_008.tif normal_009.tif normal_010.tif
+```
+
+Observed CPU throughput was about 24 patches/second. Since the 20 existing
+iter2 CSVs contain about 1.36 million scored patches, full iter4 inference is
+expected to take roughly 15-16 hours on CPU.
+
+Current iter4 WSI inference status:
+
+- Complete: `tumor_001`, `tumor_002`
+- Partial/resumable: `tumor_003`
+- Output directory: `data/inference_iter4`
+
+The command above can be rerun with `--resume`; completed CSVs are skipped
+unless `--overwrite` is passed, and `tumor_003_probs.partial.csv` will be
+continued instead of restarted.
+
 A faster targeted check was added:
 
 ```bash
