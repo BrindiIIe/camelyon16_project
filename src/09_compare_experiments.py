@@ -54,6 +54,14 @@ EXPERIMENTS = [
             PROJECT_ROOT / "models/best_resnet18_patch.pt",
         ],
     },
+    {
+        "name": "iter4",
+        "train_dir": PROJECT_ROOT / "data/patches_iter4/train",
+        "checkpoints": [
+            PROJECT_ROOT / "models/best_resnet18_patch_iter4.pt",
+            PROJECT_ROOT / "models/iter4/best_resnet18_patch.pt",
+        ],
+    },
 ]
 
 EVAL_SPLITS = {
@@ -211,7 +219,7 @@ def resolve_device(requested):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Compare baseline/iter1/iter2/iter3 datasets and available checkpoints."
+        description="Compare baseline/iter1/iter2/iter3/iter4 datasets and available checkpoints."
     )
     parser.add_argument(
         "--output-dir",

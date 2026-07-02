@@ -62,6 +62,8 @@ The 20 WSI currently used for WSI-level evaluation are:
   `large_component`, `micro_cluster`, and `hybrid` rules.
 - `src/12_extract_micro_fp_review.py`: extracts high-confidence micro-clusters
   from normal WSI for visual false-positive review and hard-negative selection.
+- `src/13_prepare_iter4_dataset.py`: prepares the `iter4` training set from
+  `iter2` plus selected reviewed micro false-positive hard negatives.
 
 Legacy scripts were moved to `src/legacy/`.
 
@@ -73,6 +75,7 @@ The four experiment checkpoints were trained:
 - `models/best_resnet18_patch_iter1.pt`
 - `models/best_resnet18_patch_iter2.pt`
 - `models/best_resnet18_patch_iter3.pt`
+- `models/best_resnet18_patch_iter4.pt` is configured but not trained yet.
 
 `models/best_resnet18_patch.pt` was also updated to the latest iter3 checkpoint
 during the previous training run, but WSI evaluation is currently centered on
@@ -219,6 +222,49 @@ Pathology review conclusion:
 - Optional hard negatives: `normal_009` component 1 and `normal_010`
   components 1-4.
 - Do not prioritize: `normal_004`, `normal_005`, `normal_007`, `normal_008`.
+
+## Iter4 Preparation
+
+`iter4` has been prepared but not trained yet.
+
+Script:
+
+```bash
+myenv311/bin/python -u src/13_prepare_iter4_dataset.py
+```
+
+Dataset:
+
+- Source: `data/patches_iter2/train`
+- Output: `data/patches_iter4/train`
+- Added only review rows marked `include_as_hard_negative=yes`
+- Did not include `maybe` rows by default
+
+Counts:
+
+| Dataset | Normal | Tumor | Total |
+| --- | ---: | ---: | ---: |
+| iter2 source | 612 | 287 | 899 |
+| iter4 prepared | 618 | 287 | 905 |
+
+Added hard negatives:
+
+- `normal_006`, component 1: 4 patches
+- `normal_009`, component 2: 2 patches
+
+Outputs:
+
+- `outputs/iter4_dataset/summary.md`
+- `outputs/iter4_dataset/added_hard_negatives.csv`
+
+`src/03_train_model.py` and `src/09_compare_experiments.py` now include
+`iter4`.
+
+Training command when ready:
+
+```bash
+myenv311/bin/python -u src/03_train_model.py --experiment iter4 --device cpu --epochs 10
+```
 
 Interpretation:
 
