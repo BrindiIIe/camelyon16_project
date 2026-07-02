@@ -75,7 +75,7 @@ The four experiment checkpoints were trained:
 - `models/best_resnet18_patch_iter1.pt`
 - `models/best_resnet18_patch_iter2.pt`
 - `models/best_resnet18_patch_iter3.pt`
-- `models/best_resnet18_patch_iter4.pt` is configured but not trained yet.
+- `models/best_resnet18_patch_iter4.pt`
 
 `models/best_resnet18_patch.pt` was also updated to the latest iter3 checkpoint
 during the previous training run, but WSI evaluation is currently centered on
@@ -225,7 +225,7 @@ Pathology review conclusion:
 
 ## Iter4 Preparation
 
-`iter4` has been prepared but not trained yet.
+`iter4` has been prepared and trained.
 
 Script:
 
@@ -265,6 +265,30 @@ Training command when ready:
 ```bash
 myenv311/bin/python -u src/03_train_model.py --experiment iter4 --device cpu --epochs 10
 ```
+
+This command was run successfully on 2026-07-02.
+
+Training result:
+
+- Checkpoint: `models/best_resnet18_patch_iter4.pt`
+- Best validation checkpoint reached at epoch 7 and matched at epoch 8.
+- Final validation confusion matrix after reloading best model:
+
+| | Pred normal | Pred tumor |
+| --- | ---: | ---: |
+| True normal | 185 | 4 |
+| True tumor | 0 | 29 |
+
+Final validation report:
+
+| Class | Precision | Recall | F1-score | Support |
+| --- | ---: | ---: | ---: | ---: |
+| normal | 1.00 | 0.98 | 0.99 | 189 |
+| tumor | 0.88 | 1.00 | 0.94 | 29 |
+
+Output summary:
+
+- `outputs/iter4_training_summary.md`
 
 Interpretation:
 
