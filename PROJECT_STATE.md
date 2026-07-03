@@ -449,6 +449,55 @@ Current extraction found 12 iter4 false-positive components:
 Next action: review these contact sheets as benign/artefact/tissue-type
 mimics and mark which components should become hard negatives for iter5.
 
+## Hard Positive Candidate Review
+
+To balance hard-negative mining with difficult tumor examples, a new script
+extracts hard-positive candidates from annotated tumor WSI using the reference
+iter2 inference outputs:
+
+```bash
+myenv311/bin/python src/16_extract_hard_positive_candidates.py
+```
+
+Default extraction settings:
+
+- input inference: `data/inference_iter2`
+- slides: `tumor_001` to `tumor_010`
+- low probability threshold: `0.50`
+- intermediate probability threshold: `0.80`
+- edge margin: `256` pixels
+- maximum selected candidates per slide: `24`
+
+The script selects annotated tumor patches that are low/intermediate confidence
+for iter2 and prioritizes patches near annotation borders. These are candidate
+hard positives, not automatically accepted training samples.
+
+Outputs:
+
+- `outputs/hard_positive_review_iter2/candidates.csv`
+- `outputs/hard_positive_review_iter2/review_template.csv`
+- `outputs/hard_positive_review_iter2/summary.md`
+- `data/review/hard_positive_iter2/`
+
+Current extraction selected 238 hard-positive candidates:
+
+| Slide | Annotated tumor candidates | Eligible hard positives | Selected | Lowest prob |
+| --- | ---: | ---: | ---: | ---: |
+| `tumor_001` | 688 | 313 | 24 | 0.042 |
+| `tumor_002` | 35 | 33 | 24 | 0.026 |
+| `tumor_003` | 421 | 236 | 24 | 0.010 |
+| `tumor_004` | 323 | 209 | 24 | 0.000 |
+| `tumor_005` | 143 | 107 | 24 | 0.017 |
+| `tumor_006` | 105 | 92 | 24 | 0.077 |
+| `tumor_007` | 147 | 118 | 24 | 0.321 |
+| `tumor_008` | 22 | 22 | 22 | 0.002 |
+| `tumor_009` | 50855 | 23858 | 24 | 0.000 |
+| `tumor_010` | 24 | 24 | 24 | 0.953 |
+
+Next action: review these candidates as true tumor vs annotation-border noise,
+artefact, necrosis/fibrosis, crushed tumor, or uninformative patch. Accepted
+rows can become hard positives for iter5.
+
 Interpretation:
 
 - Use `large_component` as the main automatic WSI decision rule.
