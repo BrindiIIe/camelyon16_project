@@ -498,6 +498,56 @@ Next action: review these candidates as true tumor vs annotation-border noise,
 artefact, necrosis/fibrosis, crushed tumor, or uninformative patch. Accepted
 rows can become hard positives for iter5.
 
+## Keyboard Review Tool
+
+`src/17_review_candidates_keyboard.py` provides a fast keyboard-based review
+workflow. It displays each candidate image/contact sheet, updates the review
+CSV in place, and copies the displayed image into a category folder under
+`data/review_sorted/`.
+
+Review iter4 false positives / hard negatives:
+
+```bash
+myenv311/bin/python src/17_review_candidates_keyboard.py --mode fp
+```
+
+Useful `fp` keys:
+
+- `h`: generic hard negative, include yes
+- `m`: macrophage/histiocyte mimic, include yes
+- `f`: fibrosis/stroma mimic, include yes
+- `a`: artefact/crush/fold, include yes
+- `v`: vessel/lumen mimic, include yes
+- `n`: necrosis/coagulation mimic, include yes
+- `o`: outside node/adipose, include yes
+- `b`: benign but not useful, include no
+- `u`: uncertain, review later
+- `x`: reject/uninformative, include no
+
+Review iter2 hard-positive candidates:
+
+```bash
+myenv311/bin/python src/17_review_candidates_keyboard.py --mode hp
+```
+
+Useful `hp` keys:
+
+- `t`: true hard tumor, include yes
+- `i`: ITC/microfocus, include yes
+- `c`: crushed tumor, include yes
+- `f`: tumor in fibrosis/stroma, include yes
+- `n`: tumor near necrosis/edge, include yes
+- `e`: easy tumor, include no
+- `p`: partial/border uncertain
+- `a`: artefact or annotation noise, include no
+- `x`: reject/uninformative, include no
+
+Shared controls:
+
+- `space` or right arrow: skip current row
+- left arrow or backspace: go back one row
+- `q`: quit and keep CSV updates already written
+
 Interpretation:
 
 - Use `large_component` as the main automatic WSI decision rule.
