@@ -505,6 +505,13 @@ workflow. It displays each candidate image/contact sheet, updates the review
 CSV in place, and copies the displayed image into a category folder under
 `data/review_sorted/`.
 
+The review CSV keeps three separate concepts:
+
+- `binary_label`: `tumor` / `normal`
+- `morphology_category`: pathologist-facing category
+- `difficulty_type`: `hard_positive`, `hard_negative`, `border_transition`,
+  `easy_or_not_useful`, `uncertain`, or `reject`
+
 Review iter4 false positives / hard negatives:
 
 ```bash
@@ -513,13 +520,16 @@ myenv311/bin/python src/17_review_candidates_keyboard.py --mode fp
 
 Useful `fp` keys:
 
-- `h`: generic hard negative, include yes
-- `m`: macrophage/histiocyte mimic, include yes
-- `f`: fibrosis/stroma mimic, include yes
-- `a`: artefact/crush/fold, include yes
-- `v`: vessel/lumen mimic, include yes
-- `n`: necrosis/coagulation mimic, include yes
+- `h`: other hard negative, include yes
+- `m`: macrophage/histiocyte, include yes
+- `s`: sinus histiocytosis, include yes
+- `f`: benign fibrosis/stroma, include yes
+- `g`: electrocoagulation artifact, include yes
+- `c`: benign crush artifact, include yes
+- `v`: vessel/lumen, include yes
 - `o`: outside node/adipose, include yes
+- `n`: benign necrosis/coagulation, include yes
+- `a`: generic artifact, include yes
 - `b`: benign but not useful, include no
 - `u`: uncertain, review later
 - `x`: reject/uninformative, include no
@@ -532,14 +542,18 @@ myenv311/bin/python src/17_review_candidates_keyboard.py --mode hp
 
 Useful `hp` keys:
 
-- `t`: true hard tumor, include yes
-- `i`: ITC/microfocus, include yes
+- `t`: other hard tumor, include yes
+- `m`: micrometastasis, include yes
+- `i`: isolated tumor cells / ITC, include yes
+- `s`: small tumor cluster, include yes
 - `c`: crushed tumor, include yes
 - `f`: tumor in fibrosis/stroma, include yes
-- `n`: tumor near necrosis/edge, include yes
+- `n`: tumor in necrosis/coagulation, include yes
+- `a`: tumor in artifact, include yes
+- `b`: metastasis border / transition, include yes
 - `e`: easy tumor, include no
 - `p`: partial/border uncertain
-- `a`: artefact or annotation noise, include no
+- `r`: artifact or annotation noise, include no
 - `x`: reject/uninformative, include no
 
 Shared controls:

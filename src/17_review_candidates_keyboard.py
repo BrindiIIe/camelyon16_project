@@ -17,16 +17,19 @@ MODE_CONFIG = {
         "include_column": "include_as_hard_negative",
         "title": "False positive / hard negative review",
         "keys": {
-            "h": ("hard_negative", "yes", "Include as hard negative"),
-            "m": ("macrophage_histiocyte", "yes", "Macrophage / histiocyte mimic"),
-            "f": ("fibrosis_stroma", "yes", "Fibrosis / stroma mimic"),
-            "a": ("artifact_crush_or_fold", "yes", "Artifact / crush / fold"),
-            "v": ("vessel_lumen", "yes", "Vessel / lumen mimic"),
-            "n": ("necrosis_coagulation", "yes", "Necrosis / coagulation mimic"),
-            "o": ("outside_node_or_adipose", "yes", "Outside node / adipose"),
-            "b": ("benign_not_useful", "no", "Benign but not useful"),
-            "u": ("uncertain_review_later", "", "Uncertain / review later"),
-            "x": ("reject_uninformative", "no", "Reject / uninformative"),
+            "h": ("other_hard_negative", "yes", "normal", "hard_negative", "Other hard negative"),
+            "m": ("macrophage_histiocyte", "yes", "normal", "hard_negative", "Macrophage / histiocyte"),
+            "s": ("sinus_histiocytosis", "yes", "normal", "hard_negative", "Sinus histiocytosis"),
+            "f": ("fibrosis_stroma_benign", "yes", "normal", "hard_negative", "Benign fibrosis / stroma"),
+            "g": ("electrocoagulation_artifact", "yes", "normal", "hard_negative", "Electrocoagulation artifact"),
+            "c": ("crush_artifact_benign", "yes", "normal", "hard_negative", "Benign crush artifact"),
+            "v": ("vessel_lumen", "yes", "normal", "hard_negative", "Vessel / lumen"),
+            "o": ("outside_node_adipose", "yes", "normal", "hard_negative", "Outside node / adipose"),
+            "n": ("necrosis_coagulation_benign", "yes", "normal", "hard_negative", "Benign necrosis / coagulation"),
+            "a": ("generic_artifact", "yes", "normal", "hard_negative", "Generic artifact"),
+            "b": ("benign_not_useful", "no", "normal", "easy_or_not_useful", "Benign but not useful"),
+            "u": ("uncertain_review_later", "", "", "uncertain", "Uncertain / review later"),
+            "x": ("reject_uninformative", "no", "", "reject", "Reject / uninformative"),
         },
     },
     "hp": {
@@ -36,15 +39,19 @@ MODE_CONFIG = {
         "include_column": "include_as_hard_positive",
         "title": "Hard positive review",
         "keys": {
-            "t": ("true_hard_tumor", "yes", "True hard tumor"),
-            "i": ("itc_or_microfocus", "yes", "ITC / microfocus"),
-            "c": ("crushed_tumor", "yes", "Crushed tumor"),
-            "f": ("tumor_in_fibrosis_stroma", "yes", "Tumor in fibrosis / stroma"),
-            "n": ("tumor_necrosis_edge", "yes", "Tumor near necrosis / edge"),
-            "e": ("easy_tumor", "no", "Easy tumor, not hard"),
-            "p": ("partial_or_border_uncertain", "", "Partial / border uncertain"),
-            "a": ("artifact_or_annotation_noise", "no", "Artifact / annotation noise"),
-            "x": ("reject_uninformative", "no", "Reject / uninformative"),
+            "t": ("other_hard_tumor", "yes", "tumor", "hard_positive", "Other hard tumor"),
+            "m": ("micrometastasis", "yes", "tumor", "hard_positive", "Micrometastasis"),
+            "i": ("isolated_tumor_cells", "yes", "tumor", "hard_positive", "Isolated tumor cells / ITC"),
+            "s": ("small_tumor_cluster", "yes", "tumor", "hard_positive", "Small tumor cluster"),
+            "c": ("crushed_tumor", "yes", "tumor", "hard_positive", "Crushed tumor"),
+            "f": ("tumor_in_fibrosis_stroma", "yes", "tumor", "hard_positive", "Tumor in fibrosis / stroma"),
+            "n": ("tumor_in_necrosis_coagulation", "yes", "tumor", "hard_positive", "Tumor in necrosis / coagulation"),
+            "a": ("tumor_in_artifact", "yes", "tumor", "hard_positive", "Tumor in artifact"),
+            "b": ("metastasis_border_transition", "yes", "tumor", "border_transition", "Metastasis border / transition"),
+            "e": ("easy_tumor", "no", "tumor", "easy_or_not_useful", "Easy tumor, not hard"),
+            "p": ("partial_or_border_uncertain", "", "", "uncertain", "Partial / border uncertain"),
+            "r": ("artifact_or_annotation_noise", "no", "", "reject", "Artifact / annotation noise"),
+            "x": ("reject_uninformative", "no", "", "reject", "Reject / uninformative"),
         },
     },
 }
@@ -113,7 +120,16 @@ def copy_to_category(image_path, sorted_dir, category, row_label):
 
 def ensure_columns(fieldnames, include_column):
     fieldnames = list(fieldnames or [])
-    for column in ["review_category", include_column, "reviewed_image", "sorted_path", "notes"]:
+    for column in [
+        "binary_label",
+        "morphology_category",
+        "difficulty_type",
+        "review_category",
+        include_column,
+        "reviewed_image",
+        "sorted_path",
+        "notes",
+    ]:
         if column not in fieldnames:
             fieldnames.append(column)
     return fieldnames
@@ -148,7 +164,7 @@ def make_title(row, idx, total, mode_config, image_column, controls):
             metadata.append(f"{key}: {value}")
 
     key_help = "  ".join(
-        f"[{key}] {label}" for key, (_, _, label) in mode_config["keys"].items()
+        f"[{key}] {label}" for key, (_, _, _, _, label) in mode_config["keys"].items()
     )
     control_help = "[space/right] skip  [left] back  [q] quit"
     return (
@@ -220,8 +236,11 @@ def main():
     print("CSV:", csv_path)
     print("Dossier de tri:", sorted_dir)
     print("Touches:")
-    for key, (category, include_value, label) in config["keys"].items():
-        print(f"  {key}: {category} / include={include_value!r} / {label}")
+    for key, (category, include_value, binary_label, difficulty_type, label) in config["keys"].items():
+        print(
+            f"  {key}: {category} / binary={binary_label!r} / "
+            f"difficulty={difficulty_type!r} / include={include_value!r} / {label}"
+        )
     print("  space/right: skip")
     print("  left/backspace: back")
     print("  q: quit")
@@ -261,10 +280,13 @@ def main():
             print(f"[UNKNOWN] touche {key!r}, ligne non modifiee")
             continue
 
-        category, include_value, label = config["keys"][key]
+        category, include_value, binary_label, difficulty_type, label = config["keys"][key]
         label_for_file = row_label(row)
         sorted_path = copy_to_category(image_path, sorted_dir, category, label_for_file)
 
+        row["binary_label"] = binary_label
+        row["morphology_category"] = category
+        row["difficulty_type"] = difficulty_type
         row["review_category"] = category
         row[include_column] = include_value
         row["reviewed_image"] = str(image_path)
