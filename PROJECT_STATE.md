@@ -409,6 +409,46 @@ Interpretation:
 - Before another full WSI run, improve `05_infer_wsi.py` with progress logging
   and/or faster batching.
 
+## Iter4 False-Positive Component Review
+
+Because full WSI evaluation showed that iter4 is less specific than iter2, a
+new script extracts larger iter4 false-positive connected components from
+normal WSI:
+
+```bash
+myenv311/bin/python src/15_extract_iter4_fp_components.py
+```
+
+Default extraction settings:
+
+- input: `data/inference_iter4`
+- slides: `normal_001` to `normal_010`
+- threshold: `0.60`
+- minimum component size: `30` connected patches
+- maximum components per slide: `5`
+- maximum extracted patches per component: `16`
+
+Outputs:
+
+- `outputs/iter4_fp_review/components.csv`
+- `outputs/iter4_fp_review/review_template.csv`
+- `outputs/iter4_fp_review/summary.md`
+- `data/review/iter4_fp_components/`
+
+Current extraction found 12 iter4 false-positive components:
+
+| Slide | Components | Largest component | Max probability |
+| --- | ---: | ---: | ---: |
+| `normal_001` | 1 | 89 | 1.000 |
+| `normal_002` | 2 | 75 | 1.000 |
+| `normal_003` | 5 | 201 | 1.000 |
+| `normal_008` | 2 | 45 | 1.000 |
+| `normal_009` | 1 | 32 | 0.998 |
+| `normal_010` | 1 | 90 | 0.999 |
+
+Next action: review these contact sheets as benign/artefact/tissue-type
+mimics and mark which components should become hard negatives for iter5.
+
 Interpretation:
 
 - Use `large_component` as the main automatic WSI decision rule.
