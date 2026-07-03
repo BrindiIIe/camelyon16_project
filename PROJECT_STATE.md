@@ -1,6 +1,6 @@
 # CAMELYON16 Metastasis Detection Project State
 
-Last updated: 2026-06-29
+Last updated: 2026-07-03
 
 ## Project Goal
 
@@ -33,6 +33,7 @@ write Python cache files outside the workspace.
   - `data/patches_iter3/`
 - Iter2 WSI inference outputs: `data/inference_iter2/`
 - Iter2 heatmaps: `data/inference_iter2/heatmaps/`
+- Iter4 WSI inference outputs: `data/inference_iter4/`
 
 The 20 WSI currently used for WSI-level evaluation are:
 
@@ -290,15 +291,10 @@ Output summary:
 
 - `outputs/iter4_training_summary.md`
 
-## Iter4 Micro False-Positive Patch Check
+## Iter4 WSI Inference And Evaluation
 
-Full WSI inference with `iter4` was attempted on the 20 WSI, then on the 7
-normal WSI that had iter2 micro false positives. On CPU, this was too slow for
-interactive iteration because `05_infer_wsi.py` writes a CSV only after each
-whole slide finishes and currently does not report batch progress.
-
-`src/05_infer_wsi.py` was then updated to make WSI inference easier to monitor
-and interrupt:
+`src/05_infer_wsi.py` was updated to make WSI inference easier to monitor and
+interrupt:
 
 - writes a `*_probs.partial.csv` during each slide instead of keeping all
   results only in memory
@@ -319,7 +315,7 @@ myenv311/bin/python -u src/05_infer_wsi.py \
   --slides normal_004.tif normal_005.tif normal_006.tif normal_007.tif normal_008.tif normal_009.tif normal_010.tif
 ```
 
-Full 20-slide iter4 WSI inference was launched with:
+Full 20-slide iter4 WSI inference was completed on 2026-07-03 with:
 
 ```bash
 myenv311/bin/python -u src/05_infer_wsi.py \
@@ -332,19 +328,54 @@ myenv311/bin/python -u src/05_infer_wsi.py \
   --slides tumor_001.tif tumor_002.tif tumor_003.tif tumor_004.tif tumor_005.tif tumor_006.tif tumor_007.tif tumor_008.tif tumor_009.tif tumor_010.tif normal_001.tif normal_002.tif normal_003.tif normal_004.tif normal_005.tif normal_006.tif normal_007.tif normal_008.tif normal_009.tif normal_010.tif
 ```
 
-Observed CPU throughput was about 24 patches/second. Since the 20 existing
-iter2 CSVs contain about 1.36 million scored patches, full iter4 inference is
-expected to take roughly 15-16 hours on CPU.
+Observed CPU throughput was about 22-25 patches/second on CPU.
 
-Current iter4 WSI inference status:
+Outputs:
 
-- Complete: `tumor_001`, `tumor_002`
-- Partial/resumable: `tumor_003`
-- Output directory: `data/inference_iter4`
+- `data/inference_iter4/*_probs.csv`
+- `outputs/wsi_connected_components_iter4/per_slide_components.csv`
+- `outputs/wsi_connected_components_iter4/summary_components.csv`
+- `outputs/wsi_connected_components_iter4/manuscript_wsi_table.md`
+- `outputs/wsi_hybrid_rules_iter4/per_slide_hybrid_rules.csv`
+- `outputs/wsi_hybrid_rules_iter4/summary_hybrid_rules.csv`
+- `outputs/wsi_hybrid_rules_iter4/manuscript_hybrid_rules.md`
+- `outputs/wsi_iter2_vs_iter4_summary.md`
 
-The command above can be rerun with `--resume`; completed CSVs are skipped
-unless `--overwrite` is passed, and `tumor_003_probs.partial.csv` will be
-continued instead of restarted.
+Evaluation commands:
+
+```bash
+myenv311/bin/python src/10_eval_wsi_connected_components.py \
+  --csv-dir data/inference_iter4 \
+  --output-dir outputs/wsi_connected_components_iter4
+
+myenv311/bin/python src/11_eval_wsi_hybrid_rules.py \
+  --csv-dir data/inference_iter4 \
+  --output-dir outputs/wsi_hybrid_rules_iter4
+```
+
+Main WSI-level finding:
+
+- Iter4 is not better than iter2 on the current 20 WSI.
+- Iter4 keeps high sensitivity, but WSI-level specificity is worse.
+- Best iter4 connected-component setting observed:
+  `patch_threshold=0.7`, `min_component_size=75`: sensitivity 1.000,
+  specificity 0.800, precision 0.833, F1 0.909.
+- By comparison, iter2 has multiple connected-component settings with
+  sensitivity 1.000 and specificity 1.000 on the same 20 WSI.
+- Therefore, `iter2` remains the reference model for the thesis pipeline.
+
+Comparable connected-component examples:
+
+| Rule | Model | Sensitivity | Specificity | Precision | F1 | FP |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| patch >= 0.60, component >= 30 | iter2 | 1.000 | 1.000 | 1.000 | 1.000 | 0 |
+| patch >= 0.60, component >= 30 | iter4 | 1.000 | 0.400 | 0.625 | 0.769 | 6 |
+| patch >= 0.50, component >= 40 | iter2 | 1.000 | 1.000 | 1.000 | 1.000 | 0 |
+| patch >= 0.50, component >= 40 | iter4 | 1.000 | 0.400 | 0.625 | 0.769 | 6 |
+| patch >= 0.80, component >= 20 | iter2 | 1.000 | 1.000 | 1.000 | 1.000 | 0 |
+| patch >= 0.80, component >= 20 | iter4 | 1.000 | 0.200 | 0.556 | 0.714 | 8 |
+
+## Iter4 Micro False-Positive Patch Check
 
 A faster targeted check was added:
 
