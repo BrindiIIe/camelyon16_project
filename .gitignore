@@ -9,8 +9,11 @@ __pycache__/
 # Environnements
 myenv/
 myenv311/
+myenv_win/
 venv/
 .env
+.matplotlib_cache/
+.torch_cache/
 
 # Data
 data/
@@ -34,3 +37,8 @@ data/
 models/
 *.tif
 *.pt
+
+# Portable review packs: keep scripts/CSV/docs, exclude generated images
+portable_review_packs/**/images/
+portable_review_packs/**/overviews/
+portable_review_packs/**/review_sorted/

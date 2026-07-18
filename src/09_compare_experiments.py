@@ -62,6 +62,22 @@ EXPERIMENTS = [
             PROJECT_ROOT / "models/iter4/best_resnet18_patch.pt",
         ],
     },
+    {
+        "name": "iter5",
+        "train_dir": PROJECT_ROOT / "data/patches_iter5/train",
+        "checkpoints": [
+            PROJECT_ROOT / "models/best_resnet18_patch_iter5.pt",
+            PROJECT_ROOT / "models/iter5/best_resnet18_patch.pt",
+        ],
+    },
+    {
+        "name": "iter6",
+        "train_dir": PROJECT_ROOT / "data/patches_iter6/train",
+        "checkpoints": [
+            PROJECT_ROOT / "models/best_resnet18_patch_iter6.pt",
+            PROJECT_ROOT / "models/iter6/best_resnet18_patch.pt",
+        ],
+    },
 ]
 
 EVAL_SPLITS = {

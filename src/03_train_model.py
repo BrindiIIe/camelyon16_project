@@ -1,6 +1,7 @@
 import torch
 import random
 import argparse
+import os
 from pathlib import Path
 from collections import Counter
 
@@ -20,6 +21,8 @@ from sklearn.metrics import (
 THRESHOLD = 0.2
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+os.environ.setdefault("TORCH_HOME", str(PROJECT_ROOT / ".torch_cache"))
+torch.hub.set_dir(str(PROJECT_ROOT / ".torch_cache" / "hub"))
 
 EXPERIMENTS = {
     "baseline": {
@@ -41,6 +44,14 @@ EXPERIMENTS = {
     "iter4": {
         "train_dir": PROJECT_ROOT / "data/patches_iter4/train",
         "model_path": PROJECT_ROOT / "models/best_resnet18_patch_iter4.pt",
+    },
+    "iter5": {
+        "train_dir": PROJECT_ROOT / "data/patches_iter5/train",
+        "model_path": PROJECT_ROOT / "models/best_resnet18_patch_iter5.pt",
+    },
+    "iter6": {
+        "train_dir": PROJECT_ROOT / "data/patches_iter6/train",
+        "model_path": PROJECT_ROOT / "models/best_resnet18_patch_iter6.pt",
     },
 }
 

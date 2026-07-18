@@ -241,7 +241,7 @@ def write_summary(path, rows, args):
         by_slide.setdefault(row["slide_id"], []).append(row)
 
     lines = [
-        "# Iter4 False-Positive Component Review",
+        "# False-Positive Component Review",
         "",
         f"Threshold: `{args.threshold}`",
         f"Minimum component size: `{args.min_component_size}` patches",

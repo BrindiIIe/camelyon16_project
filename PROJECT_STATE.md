@@ -1,6 +1,6 @@
 # CAMELYON16 Metastasis Detection Project State
 
-Last updated: 2026-07-03
+Last updated: 2026-07-18
 
 ## Project Goal
 
@@ -31,6 +31,8 @@ write Python cache files outside the workspace.
   - `data/patches_iter1/`
   - `data/patches_iter2/`
   - `data/patches_iter3/`
+  - `data/patches_iter5/`
+  - `data/patches_iter6/`
 - Iter2 WSI inference outputs: `data/inference_iter2/`
 - Iter2 heatmaps: `data/inference_iter2/heatmaps/`
 - Iter4 WSI inference outputs: `data/inference_iter4/`
@@ -48,7 +50,7 @@ The 20 WSI currently used for WSI-level evaluation are:
 - `src/02_split_dataset.py`: creates the base train/val/test patch split by
   slide.
 - `src/03_train_model.py`: trains patch-level ResNet18 models for
-  `baseline`, `iter1`, `iter2`, and `iter3`.
+  `baseline`, `iter1`, `iter2`, `iter3`, `iter4`, and `iter5`.
 - `src/04_eval_threshold.py`: evaluates patch thresholds on `patches_base/val`.
 - `src/05_infer_wsi.py`: runs WSI inference. Default model is now
   `models/best_resnet18_patch_iter2.pt`; default output is
@@ -56,7 +58,7 @@ The 20 WSI currently used for WSI-level evaluation are:
 - `src/07_visualize_heatmap.py`: generates heatmap overlays from
   `data/inference_iter2/`.
 - `src/09_compare_experiments.py`: compares patch-level results for
-  baseline/iter1/iter2/iter3.
+  baseline/iter1/iter2/iter3/iter4/iter5.
 - `src/10_eval_wsi_connected_components.py`: WSI-level evaluation using a
   single connected-component rule.
 - `src/11_eval_wsi_hybrid_rules.py`: WSI-level evaluation comparing
@@ -65,6 +67,21 @@ The 20 WSI currently used for WSI-level evaluation are:
   from normal WSI for visual false-positive review and hard-negative selection.
 - `src/13_prepare_iter4_dataset.py`: prepares the `iter4` training set from
   `iter2` plus selected reviewed micro false-positive hard negatives.
+- `src/18_prepare_iter5_dataset.py`: prepares the `iter5` training set from
+  `iter2` plus reviewed iter4 false-positive hard negatives and reviewed
+  iter2 hard-positive candidates.
+- `src/19_create_wsi_split.py`: creates a full WSI inventory and a slide-level
+  split that tracks hard-mining usage and reserves `test_*` slides for final
+  testing.
+- `src/20_create_inference_queue.py`: creates resumable WSI inference queues
+  from `outputs/splits/wsi_split_v1.csv`.
+- `src/21_run_inference_queue.py`: runs queued WSI inference in small batches
+  while updating per-slide status, runtime, output CSV path, and patch count.
+- `src/22_make_portable_review_pack.py`: creates self-contained review packs
+  and includes the independent junior-resident/PH review protocol.
+- `src/23_prepare_iter6_dataset.py`: prepares `iter6` from the reference
+  `iter2` dataset plus eight reviewed hard-negative patches per new FP
+  component.
 
 Legacy scripts were moved to `src/legacy/`.
 
@@ -77,6 +94,8 @@ The four experiment checkpoints were trained:
 - `models/best_resnet18_patch_iter2.pt`
 - `models/best_resnet18_patch_iter3.pt`
 - `models/best_resnet18_patch_iter4.pt`
+- `models/best_resnet18_patch_iter5.pt`
+- `models/best_resnet18_patch_iter6.pt`
 
 `models/best_resnet18_patch.pt` was also updated to the latest iter3 checkpoint
 during the previous training run, but WSI evaluation is currently centered on
@@ -568,6 +587,233 @@ Interpretation:
 - Use `micro_cluster` as an alert/review mode for tiny suspicious regions, not
   as a final automatic classifier yet.
 
+## Iter5 Preparation And Patch-Level Training
+
+After keyboard review, a new `iter5` dataset was prepared and trained.
+
+Hard-negative review from `outputs/iter4_fp_review/review_template.csv`:
+
+- 12/12 components included as hard negatives.
+- Added 192 normal patches.
+- Categories: fibrosis/stroma benign, vessel/lumen, outside node/adipose,
+  benign necrosis/coagulation, and generic artefact.
+
+Hard-positive review from
+`outputs/hard_positive_review_iter2/review_template.csv`:
+
+- 226/238 candidates included as hard positives.
+- 9 candidates excluded.
+- 3 rows remained without a clear include decision.
+- Included categories: metastasis border/transition, tumor in fibrosis/stroma,
+  tumor in necrosis/coagulation, small tumor clusters, ITC, crushed tumor,
+  tumor in artefact, and other hard tumor.
+
+Script:
+
+```bash
+myenv_win/Scripts/python.exe src/18_prepare_iter5_dataset.py
+```
+
+Dataset:
+
+- Source: `data/patches_iter2/train`
+- Output: `data/patches_iter5/train`
+
+Counts:
+
+| Dataset | Normal | Tumor | Total |
+| --- | ---: | ---: | ---: |
+| iter2 source | 612 | 287 | 899 |
+| iter5 prepared | 804 | 513 | 1317 |
+
+Outputs:
+
+- `outputs/iter5_dataset/summary.md`
+- `outputs/iter5_dataset/added_hard_examples.csv`
+
+Training command:
+
+```bash
+myenv_win/Scripts/python.exe -u src/03_train_model.py --experiment iter5 --device cpu --epochs 10
+```
+
+Training result:
+
+- Checkpoint: `models/best_resnet18_patch_iter5.pt`
+- Best validation checkpoint reached at epoch 9 and matched at epoch 10.
+- Final validation confusion matrix after reloading best model:
+
+| | Pred normal | Pred tumor |
+| --- | ---: | ---: |
+| True normal | 176 | 13 |
+| True tumor | 0 | 29 |
+
+Final validation report:
+
+| Class | Precision | Recall | F1-score | Support |
+| --- | ---: | ---: | ---: | ---: |
+| normal | 1.00 | 0.93 | 0.96 | 189 |
+| tumor | 0.69 | 1.00 | 0.82 | 29 |
+
+Patch-level comparison after adding `iter5`:
+
+| Experiment | Split | Threshold | Precision | Recall | F1 | FP | FN |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| iter2 | val | 0.5 | 0.967 | 1.000 | 0.983 | 1 | 0 |
+| iter4 | val | 0.5 | 0.935 | 1.000 | 0.967 | 2 | 0 |
+| iter5 | val | 0.5 | 0.879 | 1.000 | 0.935 | 4 | 0 |
+| iter2 | test | 0.5 | 0.909 | 1.000 | 0.952 | 1 | 0 |
+| iter4 | test | 0.5 | 0.909 | 1.000 | 0.952 | 1 | 0 |
+| iter5 | test | 0.5 | 0.692 | 0.900 | 0.783 | 4 | 1 |
+
+Interpretation:
+
+- `iter5` is more permissive after adding many hard positives.
+- It keeps high validation recall but loses patch-level specificity/precision.
+- It should not replace `iter2` as the reference model without WSI-level
+  evidence.
+- A full WSI inference run may be useful as an experiment, but the patch-level
+  signal suggests `iter5` may create more WSI false positives.
+
+### Iter5 Targeted WSI Check
+
+A targeted WSI inference run was performed on six normal slides that generated
+larger iter4 false-positive components:
+
+- `normal_001`
+- `normal_002`
+- `normal_003`
+- `normal_008`
+- `normal_009`
+- `normal_010`
+
+Command:
+
+```bash
+myenv_win/Scripts/python.exe -u src/05_infer_wsi.py \
+  --model-path models/best_resnet18_patch_iter5.pt \
+  --output-dir data/inference_iter5_targeted \
+  --device cpu \
+  --batch-size 256 \
+  --progress-every 10 \
+  --resume \
+  --slides normal_001.tif normal_002.tif normal_003.tif normal_008.tif normal_009.tif normal_010.tif
+```
+
+Outputs:
+
+- `data/inference_iter5_targeted/*_probs.csv`
+- `outputs/wsi_connected_components_iter5_targeted/per_slide_components.csv`
+- `outputs/wsi_connected_components_iter5_targeted/summary_components.csv`
+- `outputs/wsi_iter5_targeted_summary.md`
+
+Key targeted-normal results:
+
+| Rule | Specificity | FP | Main issue |
+| --- | ---: | ---: | --- |
+| patch >= 0.5, component >= 40 | 0.833 | 1 | `normal_009` |
+| patch >= 0.6, component >= 30 | 0.667 | 2 | `normal_008`, `normal_009` |
+| patch >= 0.8, component >= 20 | 0.667 | 2 | `normal_008`, `normal_009` |
+| patch >= 0.8, component >= 40 | 1.000 | 0 | specific on targeted normals |
+
+Interpretation:
+
+- `iter5` reduces several iter4 false-positive components.
+- `normal_009` remains a major false-positive problem, with 4590 patches >=
+  0.5 and a largest component of 153 at the `0.5/40` rule.
+- `iter5` should still be considered exploratory; `iter2` remains the
+  reference model unless a full WSI evaluation shows a clear benefit.
+
+## Iter6 Dataset Preparation
+
+The next controlled experiment uses `iter2`, not `iter5`, as its reference
+dataset. This isolates the effect of the newly reviewed false positives and
+does not carry forward the large hard-positive enrichment that made `iter5`
+more permissive.
+
+The reviewed iter5 FP batch contains 15 accepted components from five normal
+training WSI: `normal_011`, `normal_022`, `normal_025`, `normal_028`, and
+`normal_032`. All five slides were verified as `train` and are now marked as
+hard-mining material in `outputs/splits/wsi_split_v1.csv`.
+
+Preparation command:
+
+```bash
+myenv_win/Scripts/python.exe src/23_prepare_iter6_dataset.py
+```
+
+Selection:
+
+- source dataset: `data/patches_iter2/train`;
+- eight highest-probability reviewed patches per component;
+- 15 components across five normal training WSI;
+- 120 new hard negatives in total;
+- no additional hard positives.
+
+Dataset counts:
+
+| Dataset | Normal | Tumor | Total |
+| --- | ---: | ---: | ---: |
+| iter2 source | 612 | 287 | 899 |
+| iter6 prepared | 732 | 287 | 1019 |
+
+Added hard-negative categories:
+
+| Category | Added patches |
+| --- | ---: |
+| electrocoagulation artifact | 24 |
+| fibrosis/stroma benign | 16 |
+| sinus histiocytosis | 48 |
+| vessel/lumen | 32 |
+
+Outputs:
+
+- `data/patches_iter6/train/`;
+- `outputs/iter6_dataset/added_hard_negatives.csv`;
+- `outputs/iter6_dataset/summary.md`.
+
+`src/03_train_model.py` and `src/09_compare_experiments.py` now recognize
+`iter6`.
+
+### Iter6 Patch-Level Training
+
+Training command:
+
+```bash
+myenv_win/Scripts/python.exe -u src/03_train_model.py --experiment iter6 --device cpu --epochs 10
+```
+
+The best checkpoint was reached at epoch 10 and saved to
+`models/best_resnet18_patch_iter6.pt`.
+
+Final validation confusion matrix:
+
+| | Pred normal | Pred tumor |
+| --- | ---: | ---: |
+| True normal | 188 | 1 |
+| True tumor | 0 | 29 |
+
+Final tumor metrics:
+
+| Model | Precision | Recall | F1 | FP | FN |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| iter2 | 0.967 | 1.000 | 0.983 | 1 | 0 |
+| iter6 | 0.967 | 1.000 | 0.983 | 1 | 0 |
+
+Interpretation:
+
+- `iter6` matches `iter2` on the unchanged patch validation set.
+- Adding 120 new hard negatives did not reduce validation tumor recall or
+  precision.
+- This does not yet prove better WSI specificity. The next check should compare
+  `iter6` with `iter2` on WSI, first on the five hard-mining source slides as a
+  correction check and then on new normal `train` slides for independent
+  evidence.
+
+Output:
+
+- `outputs/iter6_training_summary.md`.
+
 ## Suggested Manuscript Interpretation
 
 Patch-level results show that iterative hard-case enrichment improves tumor
@@ -581,29 +827,142 @@ For small metastases, a separate sensitive micro-cluster mode is clinically
 motivated but should be presented as a review aid because it increases false
 positives.
 
-## Recommended Next Steps
+## Full WSI Inventory And Slide-Level Split v1
 
-1. Inspect heatmaps and top positive patches for the normal WSI that trigger
-   micro-cluster false positives using
-   `outputs/micro_fp_review_iter2/review_template.csv` and
-   `data/review/micro_fp_iter2/`.
-2. Extract those false-positive micro-clusters as hard negatives.
-3. Train an `iter4` model with additional micro false positives.
-4. Re-run:
+After downloading the broader CAMELYON16 WSI set, a slide-level inventory and
+split were generated to make future comparisons methodologically cleaner.
+
+Script:
 
 ```bash
-myenv311/bin/python -u src/03_train_model.py --experiment iter3 --device cpu
-myenv311/bin/python -u src/05_infer_wsi.py --device cpu --overwrite
-myenv311/bin/python src/10_eval_wsi_connected_components.py
-myenv311/bin/python src/11_eval_wsi_hybrid_rules.py
+myenv_win/Scripts/python.exe src/19_create_wsi_split.py
 ```
 
-Adjust this if a new `iter4` experiment is added.
+Outputs:
 
-5. Add more WSI after the current 20-slide workflow is stable.
-6. For thesis quality, split WSI into validation and test at the slide level,
-   tune thresholds only on validation, and report final performance on held-out
-   test WSI.
+- `outputs/splits/wsi_inventory_v1.csv`
+- `outputs/splits/wsi_split_v1.csv`
+- `outputs/splits/wsi_split_v1_summary.md`
+
+Current root-level WSI inventory:
+
+| Group | Count |
+| --- | ---: |
+| normal | 155 |
+| tumor | 105 |
+| test | 125 |
+
+Notes:
+
+- `data/wsi/background_tissue/` contains tissue-mask images and is not counted
+  as raw WSI.
+- `data/wsi/images/` contains extra/partial-looking WSI files and is not
+  counted in the root-level split.
+- Missing expected root-level WSI: `normal_086`; `tumor_089`, `tumor_090`,
+  `tumor_092` to `tumor_095`; `test_001`, `test_002`, `test_049`,
+  `test_104`, `test_107`.
+- XML files without matching root-level WSI currently include `test_001`,
+  `test_002`, `test_104`, `tumor_089`, `tumor_090`, and `tumor_092` to
+  `tumor_095`.
+
+Labeling convention in `wsi_split_v1.csv`:
+
+- `normal_*`: label `normal`
+- `tumor_*`: label `tumor`
+- `test_*` with XML: label `tumor`
+- `test_*` without XML: label `normal` by assumption
+
+This `test_*` convention should be verified against official CAMELYON16 test
+metadata before final manuscript reporting.
+
+Split v1:
+
+| Split | Normal | Tumor | Total |
+| --- | ---: | ---: | ---: |
+| train | 126 | 86 | 212 |
+| val | 29 | 19 | 48 |
+| test_final | 79 | 46 | 125 |
+
+Hard-mining tracking:
+
+- 20 slides are marked as used for hard mining and forced into `train`.
+- `normal_001` to `normal_010` were used in false-positive review and/or prior
+  WSI exploration.
+- `tumor_001` to `tumor_010` were used in hard-positive review and prior WSI
+  exploration.
+- No slide marked as hard-mining material is assigned to `test_final`.
+
+Recommended future evaluation workflow:
+
+1. Use `train` for patch extraction, model training, and hard-example
+   enrichment.
+2. Use `val` for threshold selection and WSI connected-component rule tuning.
+3. Use `test_final` only once the model and WSI decision rules are frozen.
+
+## Hard-Mining Protocol And Inference Queue
+
+A first hard-mining protocol and queue-based inference workflow were added.
+
+Protocol:
+
+- `outputs/hard_mining_protocol_v1.md`
+
+The FP review procedure was updated on 2026-07-18 for the next hard-mining
+batch. The junior resident and the senior pathologist (`PH`) will first review
+the same candidates independently in separate files. Their initial answers
+will then be compared before a consensus discussion. The comparison will
+report exact agreement percentages for the main review fields and Cohen's
+kappa when appropriate; the consensus must be stored separately and must not
+overwrite either initial assessment.
+
+Queue scripts:
+
+- `src/20_create_inference_queue.py`
+- `src/21_run_inference_queue.py`
+
+The first queue targets 20 normal training slides not already used for hard
+mining or prior WSI exploration:
+
+```bash
+myenv_win/Scripts/python.exe src/20_create_inference_queue.py \
+  --experiment iter2 \
+  --purpose hard_negative_train_screen \
+  --splits train \
+  --labels normal \
+  --limit 20 \
+  --output-csv iter2_hn_train_normals_queue.csv
+```
+
+Output:
+
+- `outputs/inference_queues/iter2_hn_train_normals_queue.csv`
+
+Dry-run validation of the queue runner was completed with `--max-slides 0`:
+
+```bash
+myenv_win/Scripts/python.exe src/21_run_inference_queue.py \
+  --queue-csv outputs/inference_queues/iter2_hn_train_normals_queue.csv \
+  --model-path models/best_resnet18_patch_iter2.pt \
+  --output-dir data/inference_iter2_hn_train_screen \
+  --device cpu \
+  --max-slides 0
+```
+
+To start real inference, run the same command with a small batch size such as
+`--max-slides 2` or `--max-slides 5`.
+
+## Recommended Next Steps
+
+1. Check whether `iter6` corrects the five WSI that supplied its new hard
+   negatives, treating this as a training-error check rather than independent
+   performance evidence.
+2. Run `iter6` on new normal `train` WSI
+   that have never been reviewed or used for hard mining.
+3. Review the next FP batch independently: junior resident first, senior
+   pathologist (`PH`) separately, then compare exact agreement and Cohen's
+   kappa before recording consensus.
+4. Tune WSI thresholds on `val` only after the new-slide FP assessment. Keep
+   `test_final` untouched until the model and WSI rules are frozen.
 
 ## Known Issues
 
