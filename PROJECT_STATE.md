@@ -1,6 +1,6 @@
 # CAMELYON16 Metastasis Detection Project State
 
-Last updated: 2026-07-18
+Last updated: 2026-08-05
 
 ## Project Goal
 
@@ -814,6 +814,261 @@ Output:
 
 - `outputs/iter6_training_summary.md`.
 
+### Iter6 Targeted WSI Correction Check
+
+`iter6` WSI inference was completed on the five normal training slides that
+supplied its 15 reviewed hard-negative components:
+
+- `normal_011`;
+- `normal_022`;
+- `normal_025`;
+- `normal_028`;
+- `normal_032`.
+
+Inference settings were identical to the earlier WSI runs: patch size 256,
+stride 128, CPU inference, and batch size 256. Outputs are in
+`data/inference_iter6_hn_train_source_normals/`.
+
+Main connected-component comparison:
+
+| Rule | Model | FP slides | Specificity | Largest component observed |
+| --- | --- | ---: | ---: | ---: |
+| patch >= 0.5, component >= 40 | iter2 | 5/5 | 0.000 | 212 |
+| patch >= 0.5, component >= 40 | iter5 | 5/5 | 0.000 | 2632 |
+| patch >= 0.5, component >= 40 | iter6 | 2/5 | 0.600 | 111 |
+| patch >= 0.6, component >= 30 | iter2 | 4/5 | 0.200 | 149 |
+| patch >= 0.6, component >= 30 | iter5 | 5/5 | 0.000 | 2272 |
+| patch >= 0.6, component >= 30 | iter6 | 3/5 | 0.400 | 105 |
+| patch >= 0.8, component >= 20 | iter2 | 4/5 | 0.200 | 91 |
+| patch >= 0.8, component >= 20 | iter5 | 5/5 | 0.000 | 615 |
+| patch >= 0.8, component >= 20 | iter6 | 3/5 | 0.400 | 64 |
+
+At the main `0.5 / 40` rule, `iter6` corrects `normal_011`, `normal_025`, and
+`normal_032`. `normal_022` and `normal_028` remain false-positive. This is an
+expected training-source correction check, not independent performance
+evidence. The next experiment must use new normal `train` WSI that have never
+been reviewed or included in training.
+
+Outputs:
+
+- `outputs/wsi_connected_components_iter6_hn_train_source_normals/`;
+- `outputs/wsi_iter2_iter5_iter6_hn_source_comparison.csv`;
+- `outputs/wsi_iter2_iter5_iter6_hn_source_summary.md`.
+
+## Iter6 Generalization Pilot On Unseen Normal Train WSI
+
+On 2026-07-18, `iter2` and `iter6` were compared on five normal `train` WSI
+that had never been reviewed, explored, or used for hard mining:
+`normal_033` to `normal_037`. The two models used identical WSI inference
+settings (patch size 256, stride 128, CPU, batch size 256).
+
+| WSI rule | Model | FP slides | Specificity | Positive patches | Largest component |
+| --- | --- | ---: | ---: | ---: | ---: |
+| patch >= 0.5, component >= 40 | iter2 | 4/5 | 0.200 | 26,749 | 1,043 |
+| patch >= 0.5, component >= 40 | iter6 | 3/5 | 0.400 | 8,655 | 100 |
+| patch >= 0.6, component >= 30 | iter2 | 5/5 | 0.000 | 21,820 | 633 |
+| patch >= 0.6, component >= 30 | iter6 | 3/5 | 0.400 | 6,907 | 85 |
+| patch >= 0.8, component >= 20 | iter2 | 4/5 | 0.200 | 12,648 | 292 |
+| patch >= 0.8, component >= 20 | iter6 | 3/5 | 0.400 | 3,817 | 55 |
+
+At the main `0.5 / 40` rule, iter6 reduces the total positive-patch burden by
+67.6% and the largest connected component by 90.4% relative to iter2. It
+corrects `normal_036`; `normal_034`, `normal_035`, and `normal_037` remain
+false-positive. `normal_035` deserves special review because its FP burden is
+higher with iter6 than with iter2.
+
+This is independent evidence relative to the hard-mining source slides, but it
+is still an internal pilot on the `train` split, not final validation evidence.
+The remaining iter6 FP components must be reviewed independently before any
+new injection.
+
+These historical numbers were later found to use the raw Otsu mask rather than
+the cleaned mask returned by the tissue-mask pipeline. They are retained here
+for traceability but must not be used as the current WSI comparison.
+
+Outputs:
+
+- `outputs/wsi_connected_components_iter2_unseen_train_normals_033_037/`;
+- `outputs/wsi_connected_components_iter6_unseen_train_normals_033_037/`;
+- `outputs/wsi_iter2_iter6_unseen_train_normals_033_037_comparison.csv`;
+- `outputs/wsi_iter2_iter6_unseen_train_normals_033_037_summary.md`.
+
+### Tissue-Mask Root Cause And Corrected WSI Pilot
+
+The review of `normal_035` with WSI context showed that all 10 extracted
+components were outside the lymph node. Code inspection then identified the
+cause: `make_tissue_mask()` returns `(raw, cleaned, threshold)`, but active
+callers unpacked its first return value and therefore used the raw Otsu mask.
+
+The mask contract is now explicit:
+
+- `make_clean_tissue_mask()` returns the cleaned mask used for inference and
+  extraction;
+- active WSI inference and hard-negative extraction call this helper;
+- `tests/test_tissue_mask_contract.py` protects the raw-versus-cleaned return
+  contract.
+
+Exact inference was resumed on the cleaned mask for `normal_033` to
+`normal_037`. Cleaning is not a simple subset operation: morphological closing,
+hole filling, and dilation can also add valid internal centers. Therefore the
+corrected results are a full clean-mask recalculation, not merely a post-hoc
+removal of old detections.
+
+At the frozen main rule (`patch probability >= 0.5`, component size >= 40):
+
+| Slide | iter2 positive patches | iter2 max component | iter2 FP | iter6 positive patches | iter6 max component | iter6 FP |
+| --- | ---: | ---: | --- | ---: | ---: | --- |
+| normal_033 | 1,136 | 35 | no | 1,165 | 55 | yes |
+| normal_034 | 14,386 | 762 | yes | 6,353 | 425 | yes |
+| normal_035 | 286 | 16 | no | 429 | 35 | no |
+| normal_036 | 5,735 | 1,047 | yes | 1,355 | 45 | yes |
+| normal_037 | 9,614 | 885 | yes | 5,054 | 161 | yes |
+
+Corrected aggregate comparison:
+
+| Model | FP slides | Specificity | Positive patches | Largest component |
+| --- | ---: | ---: | ---: | ---: |
+| iter2 | 3/5 | 0.400 | 31,157 | 1,047 |
+| iter6 | 4/5 | 0.200 | 14,356 | 425 |
+
+Thus `normal_035` is negative for both models after correction, confirming that
+its 10 reviewed components were ROI/mask errors and must not be injected as
+classifier hard negatives. Iter6 still reduces total positive-patch burden by
+53.9% and the largest component by 59.4% relative to iter2, but it does not
+improve slide-level specificity on this five-slide pilot. No new training
+iteration should be created before visual audit of the corrected mask overlays.
+
+Corrected outputs:
+
+- `data/inference_iter2_unseen_train_normals_033_037_clean_mask/`;
+- `data/inference_iter6_unseen_train_normals_033_037_clean_mask/`;
+- `outputs/wsi_connected_components_iter2_unseen_train_normals_033_037_clean_mask/`;
+- `outputs/wsi_connected_components_iter6_unseen_train_normals_033_037_clean_mask/`;
+- `outputs/wsi_iter2_iter6_unseen_train_normals_033_037_mask_comparison.csv`;
+- `outputs/wsi_iter2_iter6_unseen_train_normals_033_037_clean_mask_summary.md`.
+
+### Clean-Mask Visual Audit And Replacement Review Pack
+
+Raw-versus-cleaned mask audit figures were exported for all five slides. Each
+figure shows the WSI thumbnail, raw Otsu overlay, cleaned overlay, and pixels
+added/removed by morphology. `normal_035` falls from 1.6% raw-mask coverage to
+1.0% cleaned coverage; the cleaned mask keeps the dense nodal tissue and
+removes the extra-nodal regions responsible for the former review pack.
+
+Output:
+
+- `outputs/tissue_mask_audit_normals_033_037_clean/`.
+
+The corrected iter6 connected components were then extracted at the frozen
+`0.5 / 40` rule. This replacement pack contains 37 components:
+
+| Slide | Corrected components | Largest component |
+| --- | ---: | ---: |
+| normal_033 | 1 | 55 |
+| normal_034 | 19 | 425 |
+| normal_035 | 0 | 35 (below decision threshold) |
+| normal_036 | 1 | 45 |
+| normal_037 | 16 | 161 |
+
+Visual QA of the WSI overviews confirms readable component boxes; preliminary
+inspection of `normal_034` and `normal_037` places the boxes on nodal tissue.
+The 37 components still require pathological review before any hard-negative
+selection.
+
+Replacement review outputs:
+
+- `data/review/iter6_clean_mask_unseen_train_fp_components/`;
+- `outputs/iter6_clean_mask_unseen_train_fp_review/`;
+- `portable_review_packs/iter6_clean_mask_unseen_train_fp_review/`.
+
+The portable pack supports two distinct phases without overwriting the initial
+review. `run_review_junior_windows.cmd` records the resident's independent
+answers in `review_junior.csv`. Later,
+`run_review_consensus_with_junior_windows.cmd` displays those frozen answers
+in the review window and writes only the joint resident/PH decision to
+`review_consensus.csv`. Updating an existing pack now preserves all reviewer
+CSV files.
+
+### Iter6 Unseen-WSI FP Review Pack
+
+On 2026-07-19, every iter6 connected component meeting the frozen main rule
+(`patch probability >= 0.5`, component size >= 40, stride 128) was extracted
+from the three remaining FP slides. No candidate has been injected into a
+training dataset.
+
+| Slide | Components to review | Largest component |
+| --- | ---: | ---: |
+| normal_034 | 4 | 82 patches |
+| normal_035 | 10 | 99 patches |
+| normal_037 | 2 | 100 patches |
+| **Total** | **16** | **100 patches** |
+
+Each component has up to 16 individual 256 x 256 patches, an annotated contact
+sheet, and a slide overview. Visual QA confirmed that the contact sheets and
+overview boxes are readable. The portable packs contain 16 review rows and 19
+referenced images with no missing paths.
+
+Local outputs:
+
+- `data/review/iter6_unseen_train_fp_components/` (individual patches and
+  source review images);
+- `outputs/iter6_unseen_train_fp_review/` (component table, blank template,
+  and summary);
+- `portable_review_packs/iter6_unseen_train_fp_review/` (master pack);
+- `portable_review_packs/iter6_unseen_train_fp_review_junior/` (independent
+  junior-resident copy);
+- `portable_review_packs/iter6_unseen_train_fp_review_ph/` (independent PH
+  copy).
+
+The pack generator now creates separate blank `review_junior.csv`,
+`review_ph.csv`, and `review_consensus.csv` files plus reviewer-specific
+Windows and macOS launchers. The consensus file must remain blank until both
+initial reviews have been frozen.
+
+### Iter6 Inter-Reviewer Comparison
+
+The independent junior-resident and PH reviews were completed on 16/16
+components and compared on 2026-07-25. The two original CSV files remain
+separate and unchanged; the consensus file is still blank.
+
+| Field | Exact agreement | Agreement rate | Cohen's kappa |
+| --- | ---: | ---: | ---: |
+| Binary label (normal/tumor) | 16/16 | 100.0% | not calculable |
+| Morphology category | 3/16 | 18.8% | 0.171 |
+| Difficulty type | 15/16 | 93.8% | 0.000 |
+| Include as hard negative | 15/16 | 93.8% | 0.000 |
+
+Interpretation:
+
+- both observers classify all 16 detections as normal/benign, so there is no
+  disagreement about the binary nature of these false positives;
+- fine morphology classification is poorly reproducible in this small batch;
+- all 10 `normal_035` components differ: the junior resident mainly used
+  fibrosis/stroma or artifact categories, whereas the PH classified all 10 as
+  `outside_node_adipose`;
+- `normal_037` component 1 is the only disagreement affecting difficulty and
+  hard-negative inclusion: junior `necrosis_coagulation_benign` / include,
+  versus PH `benign_not_useful` / do not include;
+- 10 of 13 morphology disagreements come from one WSI (`normal_035`), so
+  component-level observations are clustered and kappa must remain
+  descriptive;
+- WSI-context review resolved those 10 `normal_035` rows as `outside_roi`;
+  their initial morphology disagreement reflects missing spatial context and
+  the raw-mask bug, not a pure histological disagreement;
+- kappa is not calculable for the binary field because both reviewers use only
+  one category. Kappa is zero for difficulty and inclusion because the junior
+  review has no category variation; this does not negate the high raw
+  agreement and illustrates the prevalence problem.
+
+Comparison workbook:
+
+- `outputs/interreview_iter6_20260725/comparaison_interreview_iter6.xlsx`
+
+The workbook contains the untouched raw responses, the paired comparison,
+the 13 morphology disagreements, transparent marginal-count/kappa
+calculations, a corrected-mask WSI sheet, and a synthesis sheet. Formula and
+visual QA found no errors.
+
 ## Suggested Manuscript Interpretation
 
 Patch-level results show that iterative hard-case enrichment improves tumor
@@ -951,18 +1206,123 @@ myenv_win/Scripts/python.exe src/21_run_inference_queue.py \
 To start real inference, run the same command with a small batch size such as
 `--max-slides 2` or `--max-slides 5`.
 
+### Iter7 Dataset Construction
+
+On 2026-08-01, the corrected clean-mask consensus was frozen for all 37
+reviewed iter6 false-positive components. Every selected row is labelled
+`normal`, `hard_negative`, and `include_as_hard_negative=yes`. The final
+morphology distribution is 20 `vessel_lumen`, 13
+`fibrosis_stroma_benign`, and 4 `sinus_histiocytosis` components.
+
+`iter7` was built cumulatively from `iter6`, preserving its 120 previously
+reviewed hard negatives and adding 136 patches from the corrected consensus.
+Selection is capped at four patches per component and 64 new patches per WSI.
+A deterministic rank round-robin allocation keeps all 37 components
+represented despite the WSI cap: 25 components contribute four patches and
+12 contribute three patches.
+
+| Source WSI | Added patches |
+| --- | ---: |
+| normal_033 | 4 |
+| normal_034 | 64 |
+| normal_036 | 4 |
+| normal_037 | 64 |
+
+| Dataset | Normal | Tumor | Total |
+| --- | ---: | ---: | ---: |
+| iter6 | 732 | 287 | 1,019 |
+| iter7 | 868 | 287 | 1,155 |
+
+The independent `review_ph.csv` remains blank. Therefore the 67.6% exact
+category match (25/37) between the junior review and final consensus must be
+reported as junior-versus-adjudicated-consensus agreement, not as an
+independent junior-versus-PH inter-reviewer measurement.
+
+Outputs:
+
+- `src/24_prepare_iter7_dataset.py`;
+- `data/patches_iter7/train/`;
+- `outputs/iter7_dataset/added_hard_negatives.csv`;
+- `outputs/iter7_dataset/summary.md`.
+
+### Iter7 Training
+
+On 2026-08-01, `iter7` was trained for 10 epochs on CPU using the same frozen
+recipe and unchanged patch validation set as `iter6`. The best checkpoint was
+selected at epoch 9 by tumor F1 at threshold 0.2.
+
+| | Pred normal | Pred tumor |
+| --- | ---: | ---: |
+| True normal | 189 | 0 |
+| True tumor | 0 | 29 |
+
+Both tumor precision and recall are 1.000 on the 218-patch validation set.
+Compared with `iter6`, this removes the single validation normal false positive
+while preserving all tumor detections. This does not establish WSI-level
+superiority; clean-mask WSI validation is still required.
+
+Outputs:
+
+- `models/best_resnet18_patch_iter7.pt`;
+- `outputs/iter7_training_summary.md`.
+
+### Iter7 WSI Validation
+
+On 2026-08-05, iter7 WSI inference was completed on all 48 `val` slides
+(29 normal, 19 tumor) using the corrected tissue mask. `test_final` remained
+untouched. With the frozen WSI decision rule (patch threshold 0.5, minimum
+connected component size 40), the result was:
+
+| Sensitivity | Specificity | Precision | F1 | Accuracy | TP | FP | FN | TN |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 0.842 | 0.448 | 0.500 | 0.627 | 0.604 | 16 | 16 | 3 | 13 |
+
+A validation-only grid over patch thresholds 0.5-0.9 and component sizes
+20-1000 did not find a rule with sensitivity at least 0.80 and specificity
+above 0.448. The failure therefore cannot be corrected by a simple WSI-rule
+change without a major sensitivity loss.
+
+The 16 false-positive validation slides were extracted for diagnostic use
+only. Their largest components contain strongly positive benign patterns,
+especially histiocyte-rich/reactive tissue, dense eosinophilic fibrous stroma,
+and connective/vascular or processing artefacts. Validation patches must not
+be injected into training.
+
+Outputs:
+
+- `data/inference_iter7_val/`;
+- `outputs/wsi_connected_components_iter7_val/`;
+- `outputs/wsi_connected_components_iter7_val_grid/`;
+- `outputs/iter7_val_fp_diagnostic/`;
+- `data/review/iter7_val_fp_diagnostic/`.
+
+### Iter8 Hard-Negative Screen
+
+Iter8 hard-negative discovery started on 2026-08-05 using iter7 on ten
+previously unused normal `train` WSI: `normal_013` to `normal_021`, plus
+`normal_023`. Inference is resumable, CPU-only, stride 128, batch size 128,
+eight OpenMP/MKL threads, normal process priority, and strictly one WSI at a
+time. Neither `val` nor `test_final` is used for candidate generation.
+
+Outputs in progress:
+
+- `outputs/inference_queues/iter8_hn_train_normals_queue.csv`;
+- `data/inference_iter7_iter8_hn_train_screen/`.
+
+When all ten WSI are complete, connected false-positive components will be
+extracted at threshold 0.5 and minimum size 40 into
+`outputs/iter8_hn_train_fp_review/` and packaged in
+`portable_review_packs/iter8_hn_train_fp_review/`. Human review is required
+before building or training iter8.
+
 ## Recommended Next Steps
 
-1. Check whether `iter6` corrects the five WSI that supplied its new hard
-   negatives, treating this as a training-error check rather than independent
-   performance evidence.
-2. Run `iter6` on new normal `train` WSI
-   that have never been reviewed or used for hard mining.
-3. Review the next FP batch independently: junior resident first, senior
-   pathologist (`PH`) separately, then compare exact agreement and Cohen's
-   kappa before recording consensus.
-4. Tune WSI thresholds on `val` only after the new-slide FP assessment. Keep
-   `test_final` untouched until the model and WSI rules are frozen.
+1. Complete the ten-slide iter8 hard-negative screen on normal `train` WSI.
+2. Review the extracted components independently and freeze a separate
+   consensus before adding any patch to iter8.
+3. Build iter8 cumulatively from iter7, retrain, and evaluate on `val` only.
+4. Keep `test_final` untouched until both the model and WSI decision rule are
+   frozen.
 
 ## Known Issues
 

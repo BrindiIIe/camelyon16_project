@@ -266,8 +266,9 @@ def write_summary(path, rows, args):
         [
             "",
             "Review goal: decide whether each component is benign/artefactual and",
-            "whether it should be included as a hard negative for a future iter5",
-            "dataset.",
+            "whether it should be considered as a hard negative only after the",
+            "independent reviews and the separate consensus have been completed.",
+            "Extraction alone does not authorize injection into a training dataset.",
         ]
     )
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
