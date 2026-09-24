@@ -1,4 +1,6 @@
-# Brouillon introduction et méthodes
+# Introduction, méthodes et résultats préliminaires
+
+*Version de travail — 24 septembre 2026*
 
 ## Titre de travail
 
@@ -8,34 +10,33 @@ numérisées.
 
 ## Fil conducteur
 
-Ce travail s'inscrit dans la transition numérique récente du service
-d'anatomie et cytologie pathologiques, dont les lames sont numérisées depuis
-environ deux ans. L'objectif final est d'évaluer, sur des lames issues du
-service, la performance de modèles d'intelligence artificielle pour la
-détection de métastases ganglionnaires mammaires, et de comparer un modèle
-supervisé entraîné localement à des modèles fondationnels récents tels qu'UNI
-et Virchow.
+Ce travail s'inscrit dans le déploiement récent de la pathologie numérique au
+sein du service d'anatomie et cytologie pathologiques. L'objectif final est
+d'évaluer, sur des lames issues du service, la performance de modèles
+d'intelligence artificielle pour la détection de métastases ganglionnaires
+mammaires, et de comparer une approche supervisée développée localement à des
+modèles fondationnels récents tels qu'UNI et Virchow.
 
 La première étape, présentée ici, consiste à construire et valider
 méthodologiquement la chaîne complète sur le jeu public CAMELYON16 : extraction
 de patches, apprentissage supervisé, inférence sur lame entière, génération de
-cartes de chaleur, décision au niveau de la lame et analyse des faux positifs.
+cartes de probabilité, décision au niveau de la lame et analyse morphologique
+des faux positifs comme des faux négatifs.
 
 ## Introduction
 
 ### Cancer du sein et enjeu ganglionnaire
 
 Le cancer du sein est le cancer le plus fréquent chez la femme dans le monde.
-Selon les estimations GLOBOCAN 2022 relayées par l'Organisation mondiale de la
-santé, environ 2,3 millions de nouveaux cas et 670 000 décès par cancer du sein
-ont été recensés dans le monde en 2022 [@whoBreastCancer2026;
-@globocanBreastCancer2022]. En France, il constitue également le cancer le plus
-fréquent chez la femme, avec 61 214 nouveaux cas estimés en France
-métropolitaine en 2023 et 12 757 décès en 2022 selon l'Institut national du
-cancer [@incaCancerSein2026]. Santé publique France souligne une augmentation
-de l'incidence sur les dernières décennies, contrastant avec une diminution de
-la mortalité, dans un contexte de dépistage, d'amélioration des traitements et
-de prise en charge plus précoce [@spfCancerSein2025].
+Selon les estimations les plus récentes relayées par l'Organisation mondiale de
+la santé, environ 2,4 millions de femmes ont reçu un diagnostic de cancer du
+sein et 694 000 en sont décédées dans le monde en 2024
+[@whoBreastCancer2026]. En France, il constitue également le cancer le plus
+fréquent chez la femme, avec 61 214 nouveaux cas estimés et 12 765 décès en
+2023 selon l'Institut national du cancer [@incaCancerSein2026]. Santé publique
+France rapporte une augmentation de l'incidence depuis 1990, contrastant avec
+une diminution de la mortalité, dans un contexte d'évolution du dépistage, des
+pratiques diagnostiques et des traitements [@spfCancerSein2026].
 
 Le statut ganglionnaire reste un élément majeur de la stadification et de la
 prise en charge des cancers du sein. La présence de métastases dans les
@@ -44,7 +45,7 @@ adjuvants et l'évaluation du risque de récidive. Son analyse repose sur
 l'examen anatomopathologique de lames histologiques, tâche qui peut être longue
 et répétitive lorsque de nombreux ganglions doivent être examinés, avec un
 enjeu particulier pour les petites lésions, notamment les micrométastases et
-les cellules tumorales isolées.
+les cellules tumorales isolées [@aiLymphNodeMetastasesReview2023].
 
 ### Numérisation de l'anatomopathologie
 
@@ -60,12 +61,11 @@ d'infrastructure, d'interopérabilité, d'organisation territoriale, de stockage
 de souveraineté des données et de préparation à l'arrivée de l'intelligence
 artificielle.
 
-Dans le service où s'inscrit ce travail, la numérisation des lames a été mise
-en place il y a environ deux ans. Ce contexte local crée une opportunité
-méthodologique : les lames numériques peuvent être réutilisées pour développer
-des pipelines reproductibles d'analyse d'image, évaluer des algorithmes dans
-des conditions proches de la pratique réelle, et préparer l'intégration
-raisonnée d'outils d'aide au diagnostic.
+Dans le service où s'inscrit ce travail, la numérisation récente des lames crée
+une opportunité méthodologique : sous réserve du cadre réglementaire et de
+l'anonymisation des données, les lames numériques pourront être utilisées pour
+évaluer des algorithmes dans des conditions proches de la pratique réelle et
+préparer l'intégration raisonnée d'outils d'aide au diagnostic.
 
 ### Intelligence artificielle en pathologie mammaire
 
@@ -74,11 +74,12 @@ prometteurs dans plusieurs tâches de pathologie mammaire : détection de zones
 tumorales, évaluation de biomarqueurs, quantification de l'expression HER2,
 grading, détection de mitoses et identification de métastases ganglionnaires
 [@solimanBreastAI2024; @katayamaBreastPathologyAI2024]. Le challenge
-CAMELYON16 a constitué une étape importante pour l'évaluation de systèmes de
-deep learning capables de détecter les métastases ganglionnaires mammaires sur
-lames entières [@ehteshamiBejnordiCamelyon2017]. Cette étude a montré que des
-algorithmes pouvaient atteindre des performances élevées, parfois comparables à
-celles de pathologistes dans certaines conditions expérimentales.
+CAMELYON16 a constitué une étape importante pour l'évaluation de systèmes
+d'apprentissage profond capables de détecter les métastases ganglionnaires
+mammaires sur lames entières [@ehteshamiBejnordiCamelyon2017]. Dans le cadre
+expérimental du challenge, certains algorithmes ont atteint des performances de
+niveau comparable à celles de pathologistes, selon la tâche considérée et les
+conditions de lecture, notamment la présence ou non d'une contrainte de temps.
 
 Cependant, le passage d'une performance algorithmique à une utilisation
 clinique fiable reste complexe. Les WSI sont des images gigapixels, issues de
@@ -114,18 +115,30 @@ comparaison avec UNI et Virchow.
 
 ### Objectifs
 
-L'objectif principal de ce travail préliminaire est de développer un pipeline
-interprétable de détection de métastases ganglionnaires mammaires sur lames
-entières, à partir du jeu public CAMELYON16.
+La question principale est de déterminer si un pipeline supervisé et
+interprétable peut détecter les métastases ganglionnaires mammaires sur lames
+entières tout en limitant les faux positifs liés aux structures bénignes et aux
+artefacts histologiques.
+
+L'hypothèse principale est qu'un enrichissement contrôlé et équilibré du jeu
+d'entraînement par des cas difficiles relus — *hard negatives* et, lorsque
+nécessaire, *hard positives* — peut réduire les détections faussement positives
+au niveau WSI sans dégrader la sensibilité tumorale.
+
+L'objectif principal est de développer puis d'évaluer ce pipeline sur le jeu
+public CAMELYON16, en mesurant au niveau de la lame la sensibilité et la
+spécificité d'une règle de décision fixée avant l'analyse du jeu de validation.
 
 Les objectifs secondaires sont :
 
-- entraîner et comparer plusieurs itérations d'un classifieur patch-level ;
-- générer des heatmaps tumorales sur WSI ;
-- transformer les probabilités patch-level en décision au niveau de la lame à
+- entraîner et comparer plusieurs itérations d'un classifieur au niveau patch ;
+- générer des cartes de probabilité tumorale sur WSI ;
+- transformer les probabilités au niveau patch en décision au niveau de la lame à
   l'aide de composantes connexes ;
-- analyser les faux positifs et faux négatifs afin de guider un hard-mining
-  contrôlé ;
+- caractériser les faux positifs et faux négatifs afin de guider un
+  enrichissement ciblé, limité aux lames d'entraînement ;
+- évaluer la reproductibilité de la revue morphologique et conserver
+  séparément les lectures initiales et le consensus ;
 - préparer l'évaluation ultérieure sur des lames du service ;
 - poser le cadre méthodologique d'une comparaison future avec des modèles
   fondationnels tels qu'UNI et Virchow.
@@ -157,7 +170,7 @@ Dans l'état actuel du projet, l'inventaire local comprend :
 
 Un split au niveau lame a été créé afin d'éviter les fuites d'information entre
 entraînement, validation et test final. Les lames déjà utilisées pour
-l'exploration, la revue visuelle ou le hard-mining ont été forcées dans le
+l'exploration, la revue visuelle ou l'enrichissement ciblé ont été forcées dans le
 split d'entraînement et exclues du test final.
 
 Le split actuel est :
@@ -168,33 +181,54 @@ Le split actuel est :
 | Validation | 29 | 19 | 48 |
 | Test final | 79 | 46 | 125 |
 
-Pour les lames `test_*`, le statut tumoral est actuellement inféré à partir de
-la présence d'un fichier XML : XML présent pour les lames considérées comme
-tumorales, absence d'XML pour les lames considérées comme normales. Cette
-convention devra être vérifiée avec les métadonnées officielles CAMELYON16
-avant toute présentation définitive des résultats sur test final.
+Le groupe `test_final` est maintenu strictement à l'écart du développement et
+aucun résultat final n'en est actuellement rapporté. Sa répartition provisoire
+repose sur la présence d'une annotation XML pour identifier les lames
+tumorales. Cette convention devra être confrontée aux métadonnées officielles
+CAMELYON16 avant toute ouverture et toute analyse définitive du test.
 
 ### Prétraitement et extraction de patches
 
-Les WSI sont analysées à partir d'un masque tissulaire permettant d'éviter le
-balayage des zones de fond. Des patches RGB de taille fixe sont extraits sur la
-zone tissulaire. Les annotations XML des lames tumorales sont utilisées pour
-attribuer un label tumoral ou normal aux patches selon leur position par
-rapport aux régions annotées. Les patches extraits constituent les jeux
-d'entraînement, de validation et de test patch-level.
+Les WSI sont analysées à partir d'une miniature de la lame. Un seuillage d'Otsu
+produit un masque tissulaire brut, ensuite nettoyé par des opérations
+morphologiques, un comblement des trous et une dilatation. Le masque nettoyé,
+et non le masque brut destiné au diagnostic visuel, définit les centres de
+patches admissibles.
+
+Une erreur de contrat logiciel identifiée au cours des analyses exploratoires
+avait conduit certains calculs historiques à utiliser le premier élément
+retourné par la fonction de masquage, correspondant au masque brut. Une
+fonction explicite, `make_clean_tissue_mask()`, est désormais utilisée par les
+chemins actifs d'extraction et d'inférence. Les résultats WSI considérés comme
+courants ont été recalculés avec ce masque nettoyé et un test de régression
+protège ce comportement.
+
+Des patches RGB de 256 × 256 pixels sont extraits au niveau de résolution
+maximal de la lame. Les annotations XML des lames tumorales sont utilisées pour
+attribuer un label tumoral ou normal selon la position du patch par rapport aux
+régions annotées. Les patches sont redimensionnés à 224 × 224 pixels avant leur
+entrée dans le réseau.
 
 Les scripts principaux utilisés pour cette étape sont :
 
 - `src/tissue_utils.py` pour les fonctions d'extraction ;
-- `src/02_split_dataset.py` pour la constitution du split patch-level initial ;
+- `src/02_split_dataset.py` pour la constitution du split initial au niveau patch ;
 - `src/build_train_dataset.py` et les scripts de préparation itérative pour les
   enrichissements successifs.
 
-### Modèle supervisé patch-level
+### Modèle supervisé au niveau patch
 
-Le modèle supervisé de base est un ResNet18 entraîné comme classifieur binaire
-de patches : tissu normal versus tissu tumoral. Plusieurs itérations ont été
-entraînées afin d'étudier l'effet de l'enrichissement progressif par cas
+Le modèle supervisé est un ResNet18 pré-entraîné sur ImageNet, dont la dernière
+couche est remplacée par une sortie binaire : tissu normal versus tissu
+tumoral. L'apprentissage utilise une entropie croisée pondérée en faveur de la
+classe tumorale, l'optimiseur Adam avec un taux d'apprentissage de 10⁻⁴, des
+lots de 32 images et 10 époques. L'augmentation de données comprend des
+retournements horizontaux et verticaux ainsi qu'une variation modérée de
+luminosité et de contraste. La graine aléatoire est fixée à 42.
+
+Le meilleur checkpoint est sélectionné sur le F1 tumoral du jeu de validation
+patch, sans utiliser les lames du test final. Plusieurs itérations ont été
+entraînées afin d'étudier l'effet d'un enrichissement progressif par cas
 difficiles.
 
 Les principales itérations sont :
@@ -204,20 +238,24 @@ Les principales itérations sont :
 - `iter4` : ajout de micro faux positifs revus comme hard negatives ;
 - `iter5` : ajout de faux positifs d'`iter4` et de hard positives ;
 - `iter6` : retour à la base `iter2` avec ajout de 120 hard negatives issus
-  de faux positifs WSI récemment revus.
+  de faux positifs WSI revus sur des lames d'entraînement ;
+- `iter7` : ajout cumulatif de 136 hard negatives issus de 37 composantes
+  relues après correction du masque tissulaire ;
+- `iter8` : ajout cumulatif de 516 hard negatives issus d'un criblage stratifié
+  de nouvelles lames normales d'entraînement.
 
-Le modèle `iter2` constitue actuellement le modèle de référence, car il
-présentait le meilleur compromis initial entre performance patch-level et
-performance WSI-level. Le modèle `iter6` est une itération récente visant à
-réduire les faux positifs WSI sans reprendre l'enrichissement hard-positive
-important qui avait rendu `iter5` plus permissif.
+Le modèle `iter2` reste le comparateur historique. `Iter7` et `iter8` permettent
+d'étudier le compromis entre sensibilité et spécificité induit par
+l'enrichissement en hard negatives. Les modèles sont jugés prioritairement sur
+la validation WSI, les performances au niveau patch ne reflétant pas à elles
+seules l'usage clinique visé.
 
 ### Inférence sur lame entière
 
-L'inférence WSI repose sur un balayage de la zone tissulaire par patches. Pour
-chaque position, le modèle estime une probabilité tumorale. Les résultats sont
-stockés dans des fichiers CSV contenant les coordonnées `x`, `y` et la
-probabilité tumorale.
+L'inférence WSI repose sur un balayage du masque tissulaire nettoyé par patches
+de 256 × 256 pixels, avec un pas de 128 pixels. Pour chaque position, le modèle
+estime une probabilité tumorale. Les résultats sont stockés dans des fichiers
+CSV contenant les coordonnées `x`, `y` et la probabilité tumorale.
 
 Le script `src/05_infer_wsi.py` permet l'inférence sur WSI. Il écrit un fichier
 intermédiaire `*.partial.csv` pendant le traitement d'une lame, puis le renomme
@@ -225,36 +263,38 @@ en `*_probs.csv` lorsque l'inférence est complète. Cette stratégie permet la
 reprise après interruption avec l'option `--resume`, point important compte
 tenu de la durée de calcul sur CPU.
 
-Des heatmaps peuvent ensuite être générées avec `src/07_visualize_heatmap.py`.
-Elles permettent une visualisation spatiale des zones suspectes et constituent
-un support de revue anatomopathologique.
+Des cartes de probabilité peuvent ensuite être générées avec
+`src/07_visualize_heatmap.py`. Elles permettent une visualisation spatiale des
+zones suspectes et constituent un support de revue anatomopathologique.
 
 ### Décision au niveau WSI
 
-Les prédictions patch-level sont agrégées en décision au niveau de la lame par
+Les prédictions au niveau patch sont agrégées en décision au niveau de la lame par
 une règle de composante connexe. Pour un seuil de probabilité donné, les patches
 dont la probabilité tumorale dépasse ce seuil sont considérés comme positifs.
 La plus grande composante connexe de patches positifs est ensuite mesurée. Une
 lame est classée positive si cette composante atteint une taille minimale.
 
 Cette approche vise à limiter l'impact des faux positifs isolés, fréquents dans
-les WSI normales. Les paramètres explorés comprennent :
+les WSI normales. Sur le jeu de validation uniquement, les paramètres explorés
+comprennent :
 
-- des seuils de probabilité patch-level de 0,5 à 0,9 ;
-- des tailles minimales de composantes allant de 10 à 200 patches.
+- des seuils de probabilité au niveau patch de 0,5 à 0,9 ;
+- des tailles minimales de composantes allant de 20 à 1 000 patches.
 
-Une règle interprétable initialement retenue était :
+La règle principale a été fixée avant l'analyse complète du jeu de validation :
 
 ```text
 probabilité patch >= 0,5
 taille minimale de composante connexe >= 40 patches
 ```
 
-Les performances WSI-level sont évaluées par sensibilité, spécificité,
+Les performances au niveau WSI sont évaluées par sensibilité, spécificité,
 précision, F1-score, vrais positifs, faux positifs, faux négatifs et vrais
-négatifs.
+négatifs. Le jeu `test_final` ne sera ouvert qu'après gel du modèle et de cette
+règle de décision.
 
-### Analyse des faux positifs et hard-mining
+### Analyse des faux positifs et enrichissement par cas difficiles
 
 Les premières évaluations ont montré que des lames normales pouvaient contenir
 des clusters de patches à forte probabilité tumorale. Ces faux positifs ont été
@@ -265,54 +305,136 @@ analysés selon deux modalités :
 - grandes composantes faussement positives, candidates au hard-negative mining.
 
 Les composantes faussement positives sont extraites sous forme de patches et de
-contact sheets, puis relues visuellement. La revue utilise un outil clavier
-permettant d'attribuer une catégorie morphologique et une décision d'inclusion
-comme hard negative.
+planches contact, puis relues visuellement. La revue utilise un outil dédié
+permettant d'attribuer un label binaire, une catégorie morphologique, un type
+de difficulté et une décision d'inclusion comme hard negative.
 
 Les catégories de revue incluent notamment :
 
-- sinus histiocytosis ;
-- macrophage/histiocyte ;
-- fibrosis/stroma benign ;
-- vessel/lumen ;
-- electrocoagulation artifact ;
-- benign necrosis/coagulation ;
-- generic artifact ;
-- benign but not useful ;
-- uncertain/review later ;
-- reject/uninformative.
+- histiocytose sinusale (`sinus_histiocytosis`) ;
+- macrophages/histiocytes ;
+- fibrose ou stroma bénin (`fibrosis_stroma_benign`) ;
+- vaisseau ou lumière (`vessel_lumen`) ;
+- artefact d'électrocoagulation ;
+- nécrose ou coagulation bénigne ;
+- autre artefact ;
+- tissu bénin non informatif ;
+- cas incertain ou non interprétable.
 
-Pour la prochaine phase de revue, le protocole prévoit une lecture indépendante
-par un junior puis par un pathologiste senior, suivie d'une comparaison des
-accords et d'une discussion de consensus. Les décisions initiales ne doivent
-pas être écrasées par le consensus.
+Le protocole prévoit une lecture indépendante par un médecin junior et un
+pathologiste senior, suivie d'une comparaison des accords et d'une discussion
+de consensus. Les lectures initiales sont figées dans des fichiers distincts
+et ne sont jamais remplacées par le consensus. Les faux positifs du jeu de
+validation peuvent être examinés à visée diagnostique, mais ne sont jamais
+réinjectés dans l'entraînement.
 
-### Itération `iter6`
+### Construction d'`iter6`, d'`iter7` et d'`iter8`
 
 L'itération `iter6` a été construite à partir du jeu d'entraînement `iter2`,
 auquel ont été ajoutés 120 patches hard negatives issus de 15 composantes
-faussement positives revues. Ces composantes provenaient de cinq lames normales
-d'entraînement : `normal_011`, `normal_022`, `normal_025`, `normal_028` et
-`normal_032`.
+faussement positives revues sur cinq WSI normales du split d'entraînement.
+Elle contient 732 patches normaux et 287 patches tumoraux.
 
-Les catégories ajoutées étaient :
+Après correction du masque tissulaire, 37 nouvelles composantes bénignes ont
+été retenues sur quatre autres WSI normales d'entraînement : `normal_033`,
+`normal_034`, `normal_036` et `normal_037`. L'itération `iter7` reprend
+cumulativement `iter6` et ajoute 136 patches, avec un maximum de quatre patches
+par composante et de 64 nouveaux patches par WSI. Le jeu `iter7` contient ainsi
+868 patches normaux et 287 patches tumoraux, soit 1 155 patches au total.
 
-| Catégorie | Patches ajoutés |
-| --- | ---: |
-| electrocoagulation artifact | 24 |
-| fibrosis/stroma benign | 16 |
-| sinus_histiocytosis | 48 |
-| vessel/lumen | 32 |
+Pour ce lot corrigé, la décision finale a été obtenue après remise en contexte
+WSI et adjudication. Le fichier de lecture senior indépendante étant resté
+incomplet, la comparaison disponible doit être décrite comme junior versus
+consensus adjudiqué, et non comme une mesure indépendante junior versus senior.
 
-Le dataset `iter6` contient 732 patches normaux et 287 patches tumoraux, soit
-1019 patches au total. Après entraînement, `iter6` atteint sur le jeu de
-validation patch-level une précision tumorale de 0,967, un rappel de 1,000 et
-un F1-score de 0,983, identiques aux performances tumorales précédemment
-observées pour `iter2` sur ce même jeu de validation. Ce résultat suggère que
-l'ajout des hard negatives n'a pas dégradé la sensibilité patch-level.
+Pour `iter8`, un second criblage a porté sur 40 WSI normales d'entraînement,
+réparties sur la plage `normal_024` à `normal_156` et sans recouvrement avec le
+jeu de validation ou le test final. La revue a porté sur 133 composantes issues
+de 31 lames ; 129 composantes ont été retenues par consensus. Quatre patches au
+maximum ont été sélectionnés par composante, avec un plafond de 64 nouveaux
+patches par lame. Après contrôle des doublons par coordonnées et empreinte
+SHA-256, 516 hard negatives provenant de 30 lames ont été ajoutés à `iter7`.
 
-L'évaluation WSI-level d'`iter6` reste nécessaire pour déterminer si ces hard
-negatives améliorent effectivement la spécificité sur lame entière.
+Le jeu `iter8` contient 1 384 patches normaux et 287 patches tumoraux, soit
+1 671 patches. Aucun hard positive supplémentaire n'a été ajouté. Le jeu de
+validation patch est resté inchangé, de même que les splits WSI. Ce choix
+permet d'isoler l'effet d'un enrichissement négatif important, mais expose à un
+déséquilibre accru entre les classes.
+
+## Résultats préliminaires
+
+### Validation au niveau patch
+
+`Iter7` et `iter8` ont chacun été entraînés pendant 10 époques et évalués sur
+le même jeu de validation de 218 patches, avec un seuil tumoral de 0,2. Les
+matrices de confusion sont résumées ci-dessous.
+
+| Modèle | VN | FP | FN | VP | Précision tumorale | Rappel tumoral | F1 tumoral |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `iter7` | 189 | 0 | 0 | 29 | 1,000 | 1,000 | 1,000 |
+| `iter8` | 189 | 0 | 1 | 28 | 1,000 | 0,966 | 0,982 |
+
+La validation patch suggère une dégradation limitée après l'enrichissement
+`iter8`, avec un faux négatif supplémentaire. Elle ne prédit toutefois pas
+l'ampleur du changement observé au niveau de la lame entière.
+
+### Validation au niveau WSI
+
+L'inférence des deux modèles a été réalisée sur les mêmes 48 WSI du split de
+validation, soit 29 lames normales et 19 lames tumorales, avec le masque
+tissulaire corrigé. Avec la règle principale fixée à un seuil patch de 0,5 et
+une composante minimale de 40 patches, les résultats sont les suivants :
+
+| Modèle | Sensibilité | Spécificité | Précision | F1 | Exactitude | VP | FP | FN | VN |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `iter7` | 0,842 | 0,448 | 0,500 | 0,627 | 0,604 | 16 | 16 | 3 | 13 |
+| `iter8` | 0,579 | 0,966 | 0,917 | 0,710 | 0,813 | 11 | 1 | 8 | 28 |
+
+L'enrichissement d'`iter8` réduit ainsi les faux positifs de 16 à 1, mais
+augmente les faux négatifs de 3 à 8. Il améliore la spécificité et l'exactitude
+globales au prix d'une baisse importante de sensibilité ; il ne constitue donc
+pas une amélioration clinique univoque.
+
+Une grille exploratoire plus large, limitée à la validation, retrouve avec
+`iter8` une sensibilité de 0,842 et une spécificité de 0,621 pour un seuil patch
+de 0,3 et une composante minimale de 10 patches. Des règles plus sensibles
+existent, mais leur spécificité diminue fortement : 0,947/0,414 pour la règle
+0,15/2 et 1,000/0,276 pour la règle 0,25/1. Ces points de fonctionnement ont été
+sélectionnés sur le jeu de validation et ne constituent pas des estimations de
+performance finale.
+
+### Analyse des pertes de sensibilité
+
+La comparaison spatiale avec les annotations XML montre qu'à la règle 0,5/40,
+la perte de signal tumoral localisé concerne principalement `tumor_071`,
+`tumor_074` et `tumor_096`. Le nombre de centres annotés positifs à un seuil de
+0,5 passe respectivement de 1 952 à 1, de 499 à 171 et de 542 à 0 entre
+`iter7` et `iter8`. Cette analyse repose sur l'appartenance du centre des
+patches aux polygones tumoraux ; elle ne mesure ni la surface de recouvrement ni
+la sensibilité par lésion.
+
+Une revue histologique ciblée de 36 sites a été préparée sur ces trois lames :
+dix zones présentant les plus fortes chutes de probabilité et deux zones de
+signal résiduel maximal par lame. Cette revue vise à identifier les motifs
+tumoraux devenus difficiles après l'enrichissement négatif. Les lames
+appartiennent à la validation : elles peuvent guider l'hypothèse expérimentale,
+mais leurs patches ne seront pas intégrés à l'entraînement.
+
+### Interprétation provisoire et étape suivante
+
+Les résultats montrent que le hard-negative mining est efficace pour corriger
+les faux positifs bénins ciblés, mais qu'un ajout massif de négatifs sans apport
+tumoral parallèle peut déplacer excessivement la frontière de décision. La
+prochaine expérience devra donc tester un enrichissement équilibré : maintien
+des hard negatives déjà validés, ajout de hard positives provenant uniquement
+des WSI d'entraînement et/ou rééquilibrage de l'exposition aux classes pendant
+l'apprentissage. Cette expérience devra être comparée à `iter7` et `iter8` sur
+le même jeu de validation et selon une règle WSI définie à l'avance.
+
+La taille limitée du jeu de validation, la sélection exploratoire de règles sur
+ce même jeu et l'absence actuelle d'évaluation externe imposent une
+interprétation prudente. Le jeu `test_final` reste fermé jusqu'au gel du modèle
+et de la règle de décision.
 
 ### Évaluation prévue sur lames du service
 
@@ -346,25 +468,30 @@ mais aussi sur :
 - les contraintes matérielles ;
 - la lisibilité des sorties pour le pathologiste.
 
-## Références à importer dans Zotero
+## Bibliographie de travail
 
-Clés provisoires à harmoniser avec l'export Zotero :
+Les clés suivantes sont provisoires et devront être harmonisées avec l'export
+Zotero avant mise en forme définitive :
 
-- `@whoBreastCancer2026` : WHO breast cancer fact sheet.
-- `@globocanBreastCancer2022` : GLOBOCAN 2022 / Global Cancer Observatory.
-- `@incaCancerSein2026` : INCa, Les cancers du sein.
-- `@spfCancerSein2025` : Santé publique France, cancer du sein, données.
+- `@whoBreastCancer2026` : Organisation mondiale de la santé, *Breast
+  cancer*, mise à jour du 3 juillet 2026.
+- `@incaCancerSein2026` : Institut national du cancer, *Les cancers du sein*,
+  mise à jour du 22 juillet 2026.
+- `@spfCancerSein2026` : Santé publique France, *Cancer du sein — Données*,
+  mise à jour du 6 juillet 2026.
 - `@rapportNumerisationACP2025` : rapport ministériel sur la numérisation de
   l'anatomie et cytologie pathologiques.
 - `@ehteshamiBejnordiCamelyon2017` : Ehteshami Bejnordi et al., JAMA 2017,
   CAMELYON16.
-- `@aiLymphNodeMetastasesReview2023` : systematic review on AI for lymph node
-  metastases.
-- `@solimanBreastAI2024` : Artificial intelligence's impact on breast cancer
-  pathology.
-- `@katayamaBreastPathologyAI2024` : Current status and prospects of AI in
-  breast cancer pathology.
-- `@digitalPathologyRoutineReview2024` : Implementation of digital pathology and
-  AI in routine pathology practice.
+- `@aiLymphNodeMetastasesReview2023` : revue systématique sur l'IA et les
+  métastases ganglionnaires.
+- `@solimanBreastAI2024` : Soliman et al., *Artificial intelligence's impact
+  on breast cancer pathology*, Diagnostic Pathology, 2024.
+- `@katayamaBreastPathologyAI2024` : Katayama et al., *Current status and
+  prospects of artificial intelligence in breast cancer pathology*,
+  International Journal of Clinical Oncology, 2024.
+- `@digitalPathologyRoutineReview2024` : *Implementation of digital pathology
+  and artificial intelligence in routine pathology practice*, Laboratory
+  Investigation, 2024.
 - `@chenUNI2024` : Chen et al., UNI, Nature Medicine 2024.
-- `@vorontsovVirchow2024` : Virchow foundation model, Nature Medicine 2024.
+- `@vorontsovVirchow2024` : Vorontsov et al., Virchow, Nature Medicine 2024.

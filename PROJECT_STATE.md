@@ -1,6 +1,6 @@
 # CAMELYON16 Metastasis Detection Project State
 
-Last updated: 2026-08-05
+Last updated: 2026-09-13
 
 ## Project Goal
 
@@ -1298,30 +1298,110 @@ Outputs:
 
 ### Iter8 Hard-Negative Screen
 
-Iter8 hard-negative discovery started on 2026-08-05 using iter7 on ten
-previously unused normal `train` WSI: `normal_013` to `normal_021`, plus
-`normal_023`. Inference is resumable, CPU-only, stride 128, batch size 128,
-eight OpenMP/MKL threads, normal process priority, and strictly one WSI at a
-time. Neither `val` nor `test_final` is used for candidate generation.
+The first iter8 pilot completed on 2026-08-05 using iter7 on ten previously
+unused normal `train` WSI: `normal_013` to `normal_021`, plus `normal_023`.
+The fixed 0.5/40 rule produced no connected component. A read-only diagnostic
+at 0.5/20 found only three small components on `normal_015`, `normal_018`, and
+`normal_019`, which is insufficient to justify an iter8 training run.
 
-Outputs in progress:
+Pilot outputs:
 
 - `outputs/inference_queues/iter8_hn_train_normals_queue.csv`;
-- `data/inference_iter7_iter8_hn_train_screen/`.
+- `data/inference_iter7_iter8_hn_train_screen/`;
+- `outputs/iter8_hn_train_fp_review/`;
+- `portable_review_packs/iter8_hn_train_fp_review/`.
 
-When all ten WSI are complete, connected false-positive components will be
-extracted at threshold 0.5 and minimum size 40 into
-`outputs/iter8_hn_train_fp_review/` and packaged in
-`portable_review_packs/iter8_hn_train_fp_review/`. Human review is required
-before building or training iter8.
+The pilot used a consecutive low-numbered block and was not representative of
+the full normal range. A second screen started on 2026-08-06 with 40 normal
+`train` WSI sampled evenly from `normal_024` through `normal_156`. The queue
+contains no overlap with the pilot, no `val` WSI, and no `test_final` WSI.
+Inference remains resumable, CPU-only, stride 128, batch size 128, eight
+OpenMP/MKL threads, normal process priority, and strictly one WSI at a time.
+
+Stratified-screen outputs:
+
+- `outputs/inference_queues/iter8_hn_train_normals_stratified40_queue.csv`;
+- `data/inference_iter7_iter8_hn_train_stratified40/`.
+
+After all 40 WSI are complete, candidates will be extracted at 0.5/20 into
+`outputs/iter8_hn_train_stratified40_fp_review/` and packaged in
+`portable_review_packs/iter8_hn_train_stratified40_fp_review/`. The target is
+at least 50 components from at least 15 source slides. Human review remains
+mandatory before building or training iter8.
+
+### Iter8 Consensus And Dataset Preparation
+
+On 2026-09-05, the user confirmed that the junior/senior consensus review
+was complete. The stratified inference queue is complete (40/40 WSI).
+The pack contains 133 reviewed components from 31 normal training slides:
+129 accepted hard-negative components and four benign/not-useful exclusions.
+Both junior and consensus files are complete; the independent PH file is blank.
+Any reviewer comparison must therefore be described as junior versus adjudicated
+consensus, not independent junior versus PH agreement.
+
+Iter8 is now prepared cumulatively from iter7 using
+`src/25_prepare_iter8_dataset.py`. Four patches were selected per accepted
+component, with a maximum of 64 new patches per slide. The selected 516 patches
+contained no duplicates against the cumulative base or each other by image
+SHA-256 or parsed WSI coordinates. No extra hard positives were added.
+
+| Dataset | Normal | Tumor | Total |
+| --- | ---: | ---: | ---: |
+| iter7 | 868 | 287 | 1,155 |
+| iter8 | 1,384 | 287 | 1,671 |
+
+Outputs:
+
+- `data/patches_iter8/train/`;
+- `outputs/iter8_dataset/added_hard_negatives.csv`;
+- `outputs/iter8_dataset/summary.md`;
+- `outputs/iter8_dataset/review_consensus_snapshot.csv`;
+- `outputs/iter8_dataset/duplicates_skipped.txt`;
+- `outputs/iter8_dataset/verification.json`.
+
+All added source slides were checked as normal/train and marked for iter8 hard
+mining in the split inventory, without changing split assignments. The prior
+inventory is backed up in `outputs/iter8_dataset/wsi_split_v1_before_iter8.csv`.
+Iter8 training was launched on 2026-09-05 (10 epochs, CPU, eight OMP/MKL threads).
+The recipe matches iter7: ImageNet initialization, batch size 32, Adam 1e-4,
+class weights [1, 2], validation threshold 0.2, best tumor F1 checkpoint.
+All 1,671 train patches and the unchanged 218 validation patches are used.
+Run metadata and log paths: `outputs/iter8_dataset/training_run.json`.
+Training completed successfully (10/10 epochs). Best checkpoint: epoch 8
+(epoch 10 tied). At validation threshold 0.2: TN=189, FP=0, FN=1, TP=28;
+tumor precision=1.0000, recall=0.9655, F1=0.9825. Iter7 had FP=0 and FN=0
+on the same patch validation set. WSI-level benefit remains unverified.
+Summary: `outputs/iter8_training_summary.md`. Validation and final-test
+datasets were not modified.
+
+### Iter8 WSI Validation Run
+
+On 2026-09-05, clean-mask WSI validation was launched on the exact same 48
+validation slides as iter7 (29 normal, 19 tumor). Queue membership and source
+file existence were verified before launch. CPU, eight OMP/MKL threads,
+stride 128, batch size 128, one slide at a time, resumable inference.
+The orchestrator `src/26_run_iter8_wsi_validation.py` automatically runs
+frozen-rule evaluation (0.5/40) and the same validation-only grid as iter7
+only after all 48 inference outputs are complete.
+
+- Queue: `outputs/inference_queues/iter8_val_queue.csv`.
+- Probabilities: `data/inference_iter8_val/`.
+- Run/log metadata: `outputs/iter8_wsi_validation_run.json`.
+- Live pipeline status: `outputs/iter8_wsi_validation_status.json`.
+- Final report when complete: `outputs/iter8_wsi_validation_summary.md`.
+- Frozen-rule and grid outputs: `outputs/wsi_connected_components_iter8_val/`
+  and `outputs/wsi_connected_components_iter8_val_grid/`.
+
+Results are pending; consult the live status and logs. No test_final WSI is
+included in this run.
 
 ## Recommended Next Steps
 
-1. Complete the ten-slide iter8 hard-negative screen on normal `train` WSI.
-2. Review the extracted components independently and freeze a separate
-   consensus before adding any patch to iter8.
-3. Build iter8 cumulatively from iter7, retrain, and evaluate on `val` only.
-4. Keep `test_final` untouched until both the model and WSI decision rule are
+1. Inspect the single iter8 patch-validation false negative and compare its
+   prediction with iter7 before interpreting the sensitivity change.
+2. Evaluate iter8 on clean-mask WSI `val`, including the frozen rule and a
+   validation-only WSI rule grid.
+3. Keep `test_final` untouched until both the model and WSI decision rule are
    frozen.
 
 ## Known Issues
@@ -1339,3 +1419,105 @@ Use this prompt:
 ```text
 Je continue mon projet de thèse CAMELYON16. Lis PROJECT_STATE.md puis aide-moi à poursuivre à partir de la section "Recommended Next Steps".
 ```
+
+### Iter8 WSI restart (2026-09-05 17:42)
+The initial inference process crashed at 08:24 (exit code 3221225478), after one completed slide and partial normal_029. Cause is not established. The existing orchestrator was restarted with resume enabled at 17:42; prior log metadata was preserved under outputs/logs/. Consult outputs/iter8_wsi_validation_status.json and the current run logs for live progress.
+
+
+### Iter8 WSI restart (2026-09-07)
+Drive E: is accessible again. Before restart, 14/48 slides were done, normal_099 was partial, and no Python process was running. Resumed the existing validation orchestrator with unchanged settings; completed outputs are preserved. Current metadata: outputs/iter8_wsi_validation_run.json. Global metrics remain pending.
+
+
+### Iter8 WSI Validation Completed (2026-09-08)
+
+All 48 validation WSI completed; the orchestrator finished at 02:05:36.
+At the frozen 0.5/40 rule: TP=11, FP=1, FN=8, TN=28.
+Sensitivity 57.9%, specificity 96.6%, precision 91.7%, F1 71.0%.
+Iter7 on the same slides: TP=16, FP=16, FN=3, TN=13.
+Iter8 strongly reduces false positives but loses tumor-slide sensitivity;
+it is not an unqualified improvement. Inspect false negatives and validation
+grid before choosing the next experiment. Final test remains untouched.
+Summary: `outputs/iter8_wsi_validation_summary.md`.
+Both frozen-rule and grid evaluations are complete; earlier pending-status
+notes are superseded by this entry.
+
+### Iter8 Sensitivity Diagnostic (2026-09-11)
+
+Completed an exploratory 90-rule grid on the existing 48 validation outputs:
+patch thresholds 0.01, 0.02, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5;
+component sizes 1, 2, 3, 5, 10, 15, 20, 30, 40. The 0.5/40 result
+reproduces the original evaluation exactly. No new inference or training.
+
+Best specificity at selected sensitivity targets in this grid:
+- >=80%: 0.3/10 gives sensitivity 84.2%, specificity 62.1% (FN=3, FP=11).
+- >=90%: 0.15/2 gives sensitivity 94.7%, specificity 41.4% (FN=1, FP=17).
+- >=95%: 0.25/1 gives sensitivity 100%, specificity 27.6% (FN=0, FP=21).
+These are exploratory validation-selected operating points, not final-test
+estimates. A single-patch rule is especially vulnerable to false positives.
+
+At 0.5/40, iter8 retains iter7's three FN (tumor_040, tumor_043, tumor_067)
+and adds tumor_017, tumor_071, tumor_074, tumor_081, tumor_096.
+Their largest components at probability >=0.5 change respectively:
+59->7, 538->1, 792->30, 82->0, 252->0.
+This documents loss of above-threshold signal, not its histological cause.
+Slide-level positivity does not establish that a detection overlaps tumor;
+XML/WSI localization review is needed before interpreting recovered detections.
+
+Script: `src/27_diagnose_iter8_sensitivity.py`.
+Outputs: `outputs/iter8_sensitivity_diagnostic/` (summary.md,
+tumor_comparison.csv, per_slide_thresholds.csv, summary_grid.csv, grid.md).
+Next: inspect localization of lost/recovered signals against annotations;
+then decide on training-only tumor enrichment or class-exposure changes.
+No iter9 dataset or training has been initiated; final test untouched.
+
+### Iter8 Annotation Localization Diagnostic (2026-09-13)
+
+Ran `src/28_localize_iter8_validation_signals.py` on all 19 tumor validation
+slides, using existing iter7/iter8 probabilities and XML annotations only.
+CSV coordinates are level-0 patch centers. Tumor polygons are unioned and
+Exclusion polygons subtracted. A component is localized if at least one
+of its centers is inside the resulting tumor region; this is not an area
+overlap or lesion-level sensitivity measure and does not replace histology review.
+
+At 0.5/40, iter7 has 16 positive slides but only 14 with a qualifying localized
+component; iter8 has 11 for both. The qualifying iter7 components on tumor_017
+and tumor_081 have no tumor center. The five lost slide-level positives thus
+include three losses of qualifying localized components: tumor_071,
+tumor_074, tumor_096. Their positive centers inside tumor at p>=0.5 change
+1952->1, 499->171, and 542->0, respectively.
+
+Iter8 alternative rules 0.3/10, 0.15/2, 0.25/1 have qualifying localized
+components on 16/19, 18/19, 19/19 slides, respectively. Their previously
+measured validation specificities remain 62.1%, 41.4%, 27.6%.
+These are exploratory operating points, not final-test performance.
+
+Checks: identical iter7/iter8 coordinate grids on all 19 slides; no duplicate
+centers; all frozen-rule largest components reproduce previous results;
+synthetic checks passed for exclusions, diagonal connectivity, localized
+components, and empty positives. One NaN probability exists in iter7 tumor_014,
+outside tumor. It passes no threshold and is explicitly recorded, not treated
+as a valid negative probability.
+
+Outputs: `outputs/iter8_localization_diagnostic/summary.md`, `localization.csv`,
+and eight paired coordinate maps for iter8 false negatives. The tumor_071 map
+was visually inspected. Next: histological review focused on tumor_071,
+tumor_074, tumor_096, then design a controlled training-only class-exposure
+experiment. Validation patches must not enter training. No iter9 training
+started and no final-test slide was accessed.
+
+### Iter8 Targeted Histology Review Pack (2026-09-24)
+
+A self-contained review pack was prepared for the three localized validation
+regressions: `tumor_071`, `tumor_074`, and `tumor_096`. For each slide, it
+contains ten spatially separated tumor-annotation sites with the largest
+Iter7-to-Iter8 probability drops and two sites with the highest remaining
+Iter8 signal as internal controls (36 sites total). Each review sheet shows a
+2048-pixel histology context with XML contours, a 768-pixel zoom, the exact
+256-pixel model patch, coordinates, and both model probabilities.
+
+The local `review.html` interface stores decisions in the browser and exports
+`review_completed.csv`; `review_template.csv` supports spreadsheet review.
+The pack is in `portable_review_packs/iter8_targeted_histology_review/` and can
+be regenerated with `src/29_prepare_iter8_histology_review.py`. These are
+validation images for diagnostic review only and must not enter training.
+No `test_final` slide was accessed.

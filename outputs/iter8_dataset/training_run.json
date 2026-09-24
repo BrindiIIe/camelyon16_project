@@ -1,0 +1,9 @@
+{
+  "pid": 17608,
+  "stdout": "E:\\camelyon16_project\\outputs\\logs\\iter8_training_20260905_065112.stdout.log",
+  "stderr": "E:\\camelyon16_project\\outputs\\logs\\iter8_training_20260905_065112.stderr.log",
+  "started": "2026-09-05T06:51:12.5617118+02:00",
+  "experiment": "iter8",
+  "epochs": 10,
+  "threads": 8
+}

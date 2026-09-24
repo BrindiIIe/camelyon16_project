@@ -10,26 +10,30 @@ Zotero/BibTeX définitives.
 
 - Organisation mondiale de la santé.
 - Page : Breast cancer.
-- Données utiles : environ 2,3 millions de nouveaux cas et 670 000 décès dans
-  le monde en 2022.
+- Mise à jour : 3 juillet 2026.
+- Données utiles : environ 2,4 millions de femmes diagnostiquées et 694 000
+  décès dans le monde en 2024.
 - URL : https://www.who.int/news-room/fact-sheets/detail/breast-cancer
 
-### Global Cancer Observatory / GLOBOCAN 2022 [`globocanBreastCancer2022`]
+### Global Cancer Observatory [`globalCancerObservatory2026`]
 
-- Source IARC/WHO.
-- À utiliser pour les chiffres mondiaux et éventuellement les données par pays.
+- Source IARC/WHO citée par la fiche OMS 2026.
+- À utiliser pour les chiffres mondiaux 2024 et éventuellement les données par
+  pays.
 - URL : https://gco.iarc.fr/
 
 ### INCa - Les cancers du sein [`incaCancerSein2026`]
 
 - Institut national du cancer.
-- Données utiles : 61 214 nouveaux cas en France métropolitaine en 2023,
-  12 757 décès en 2022, âge médian au diagnostic 64 ans.
+- Mise à jour : 22 juillet 2026.
+- Données utiles : 61 214 nouveaux cas et 12 765 décès en France métropolitaine
+  en 2023, âge médian au diagnostic 64 ans.
 - URL : https://en-www.cancer.fr/professionnels-de-sante/statistiques-et-chiffres-sur-les-cancers/epidemiologie-des-cancers/cancer-du-sein
 
-### Santé publique France - Cancer du sein, données [`spfCancerSein2025`]
+### Santé publique France - Cancer du sein, données [`spfCancerSein2026`]
 
-- Données utiles : incidence en augmentation, mortalité en baisse.
+- Mise à jour : 6 juillet 2026.
+- Données utiles : incidence en augmentation depuis 1990, mortalité en baisse.
 - URL : https://www.santepubliquefrance.fr/index.php/cancer-du-sein/donnees
 
 ## Pathologie numérique
@@ -73,7 +77,7 @@ Zotero/BibTeX définitives.
 ### Current status and prospects of AI in breast cancer pathology [`katayamaBreastPathologyAI2024`]
 
 - Katayama A, Aoki Y, Watanabe Y, Horiguchi J, Rakha EA, Oyama T.
-- Japanese Journal of Clinical Oncology. 2024;29(11):1648-1668.
+- International Journal of Clinical Oncology. 2024;29(11):1648-1668.
 - DOI : 10.1007/s10147-024-02513-3
 - PubMed : https://pubmed.ncbi.nlm.nih.gov/38619651/
 
