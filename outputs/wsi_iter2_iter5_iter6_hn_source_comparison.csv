@@ -1,0 +1,10 @@
+model,patch_threshold,min_component_size,n_slides,false_positive_slides,specificity,max_largest_component,total_positive_patches
+iter2,0.5,40,5,5,0.0,212,11187
+iter5,0.5,40,5,5,0.0,2632,24966
+iter6,0.5,40,5,2,0.6,111,6132
+iter2,0.6,30,5,4,0.2,149,8725
+iter5,0.6,30,5,5,0.0,2272,20436
+iter6,0.6,30,5,3,0.4,105,4864
+iter2,0.8,20,5,4,0.2,91,4718
+iter5,0.8,20,5,5,0.0,615,12325
+iter6,0.8,20,5,3,0.4,64,2674

@@ -3,7 +3,7 @@ from tissue_utils import (
     keep_centers_in_tissue,
     extract_patch,
 )
-from tissue_mask import make_tissue_mask
+from tissue_mask import make_clean_tissue_mask
 from pathlib import Path
 import csv
 
@@ -64,7 +64,7 @@ def infer_one_slide(wsi_path, model):
 
     thumb = slide.get_thumbnail(THUMB_SIZE).convert("RGB")
     thumb_np = np.array(thumb)
-    tissue_mask = make_tissue_mask(thumb_np)
+    tissue_mask = make_clean_tissue_mask(thumb_np)
 
     candidate_centers = generate_candidate_centers(
         slide_dims=slide.dimensions,

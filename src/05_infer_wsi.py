@@ -1,5 +1,5 @@
 from tissue_utils import (
-    make_tissue_mask,
+    make_clean_tissue_mask,
     generate_candidate_centers,
     keep_centers_in_tissue,
     extract_patch,
@@ -179,7 +179,7 @@ def infer_one_slide(
 
     thumb = slide.get_thumbnail(THUMB_SIZE).convert("RGB")
     thumb_np = np.array(thumb)
-    tissue_mask, *_ = make_tissue_mask(thumb_np)
+    tissue_mask = make_clean_tissue_mask(thumb_np)
     tissue_mask = tissue_mask.astype(bool)
 
     candidate_centers = generate_candidate_centers(

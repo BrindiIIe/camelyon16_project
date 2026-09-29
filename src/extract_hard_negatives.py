@@ -1,7 +1,7 @@
 from pathlib import Path
 import numpy as np
 from scipy.ndimage import distance_transform_edt
-from tissue_mask import make_tissue_mask
+from tissue_mask import make_clean_tissue_mask
 import csv
 import random
 import math
@@ -143,7 +143,7 @@ def main():
         thumb = slide.get_thumbnail(THUMB_SIZE).convert("RGB")
         thumb_np = np.array(thumb)
 
-        tissue_mask, *_ = make_tissue_mask(thumb_np)
+        tissue_mask = make_clean_tissue_mask(thumb_np)
         tissue_mask = tissue_mask.astype(bool)
         dist_map = distance_transform_edt(tissue_mask)
 

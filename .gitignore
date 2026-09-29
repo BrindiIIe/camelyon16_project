@@ -9,8 +9,12 @@ __pycache__/
 # Environnements
 myenv/
 myenv311/
+myenv_win/
 venv/
 .env
+.matplotlib_cache/
+.torch_cache/
+.codex_work/
 
 # Data
 data/
@@ -34,3 +38,15 @@ data/
 models/
 *.tif
 *.pt
+
+# Portable review packs: keep scripts/CSV/docs, exclude generated images
+portable_review_packs/**/images/
+portable_review_packs/**/overviews/
+portable_review_packs/**/review_sorted/
+portable_review_packs/**/*.png
+portable_review_packs/**/*.jpg
+portable_review_packs/**/*.jpeg
+
+# Generated visual QA artifacts: keep tabular summaries and reports
+outputs/**/*.png
+outputs/**/*.inspect.ndjson
