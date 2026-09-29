@@ -1,27 +1,28 @@
 # Introduction, méthodes et résultats préliminaires
 
-*Version de travail — 24 septembre 2026*
+*Version de travail — 29 septembre 2026*
 
 ## Titre de travail
 
-Développement et évaluation d'un pipeline d'intelligence artificielle pour la
-détection de métastases ganglionnaires mammaires sur lames histologiques
-numérisées.
+Comparaison d'un algorithme supervisé et des modèles fondationnels UNI et
+Virchow pour la détection de métastases ganglionnaires mammaires sur les lames
+histologiques numérisées du service.
 
 ## Fil conducteur
 
 Ce travail s'inscrit dans le déploiement récent de la pathologie numérique au
-sein du service d'anatomie et cytologie pathologiques. L'objectif final est
-d'évaluer, sur des lames issues du service, la performance de modèles
-d'intelligence artificielle pour la détection de métastases ganglionnaires
-mammaires, et de comparer une approche supervisée développée localement à des
-modèles fondationnels récents tels qu'UNI et Virchow.
+sein du service d'anatomie et cytologie pathologiques. Son objectif principal
+est de comparer, sur des lames issues du service, un algorithme supervisé
+développé localement aux modèles fondationnels UNI et Virchow pour la détection
+de métastases ganglionnaires mammaires.
 
-La première étape, présentée ici, consiste à construire et valider
-méthodologiquement la chaîne complète sur le jeu public CAMELYON16 : extraction
-de patches, apprentissage supervisé, inférence sur lame entière, génération de
-cartes de probabilité, décision au niveau de la lame et analyse morphologique
-des faux positifs comme des faux négatifs.
+La première étape, présentée ici, est une phase préparatoire. Elle consiste à
+construire sur le jeu public CAMELYON16 un algorithme supervisé de référence et
+une chaîne d'évaluation complète : extraction de patches, apprentissage,
+inférence sur lame entière, génération de cartes de probabilité, décision au
+niveau de la lame et analyse morphologique des erreurs. Cette phase doit
+aboutir à un protocole reproductible qui sera ensuite appliqué aux trois
+approches sur les données du service.
 
 ## Introduction
 
@@ -115,44 +116,62 @@ comparaison avec UNI et Virchow.
 
 ### Objectifs
 
-La question principale est de déterminer si un pipeline supervisé et
-interprétable peut détecter les métastases ganglionnaires mammaires sur lames
-entières tout en limitant les faux positifs liés aux structures bénignes et aux
-artefacts histologiques.
+La question principale est de déterminer, sur les lames ganglionnaires
+numérisées du service, quelle stratégie offre le meilleur compromis pour la
+détection de métastases mammaires : l'algorithme supervisé local, initialisé à
+partir d'un ResNet18 pré-entraîné sur ImageNet puis entraîné sur CAMELYON16, ou
+une approche fondée sur les représentations d'UNI ou de Virchow.
 
-L'hypothèse principale est qu'un enrichissement contrôlé et équilibré du jeu
-d'entraînement par des cas difficiles relus — *hard negatives* et, lorsque
-nécessaire, *hard positives* — peut réduire les détections faussement positives
-au niveau WSI sans dégrader la sensibilité tumorale.
+L'hypothèse principale est que les représentations histologiques apprises à
+grande échelle par UNI et Virchow pourraient améliorer la transférabilité aux
+lames du service par rapport à un réseau conventionnel pré-entraîné sur des
+images naturelles. Leur éventuel avantage doit néanmoins être mesuré dans un
+protocole commun, car leur taille et leur diversité d'apprentissage ne
+garantissent pas une meilleure performance pour cette tâche locale précise.
 
-L'objectif principal est de développer puis d'évaluer ce pipeline sur le jeu
-public CAMELYON16, en mesurant au niveau de la lame la sensibilité et la
-spécificité d'une règle de décision fixée avant l'analyse du jeu de validation.
+L'objectif principal est de comparer les trois approches sur une même cohorte
+de lames du service et selon une même référence anatomopathologique. La
+comparaison portera en priorité sur la performance au niveau de la lame,
+notamment la sensibilité et la spécificité, avec des règles de décision et un
+jeu d'évaluation définis avant l'analyse finale.
+
+Le développement sur CAMELYON16 constitue l'objectif méthodologique
+préparatoire. Il vise à établir l'algorithme supervisé de référence, à fiabiliser
+la chaîne d'analyse WSI et à définir les procédures de contrôle qui seront
+appliquées aux données locales.
 
 Les objectifs secondaires sont :
 
-- entraîner et comparer plusieurs itérations d'un classifieur au niveau patch ;
-- générer des cartes de probabilité tumorale sur WSI ;
-- transformer les probabilités au niveau patch en décision au niveau de la lame à
-  l'aide de composantes connexes ;
-- caractériser les faux positifs et faux négatifs afin de guider un
-  enrichissement ciblé, limité aux lames d'entraînement ;
-- évaluer la reproductibilité de la revue morphologique et conserver
-  séparément les lectures initiales et le consensus ;
-- préparer l'évaluation ultérieure sur des lames du service ;
-- poser le cadre méthodologique d'une comparaison future avec des modèles
-  fondationnels tels qu'UNI et Virchow.
+- constituer une cohorte locale rétrospective avec une séparation stricte des
+  données de développement et d'évaluation ;
+- entraîner et comparer plusieurs itérations du classifieur supervisé afin de
+  figer la référence locale avant la comparaison principale ;
+- adapter UNI et Virchow à la tâche de détection selon un protocole comparable,
+  par extraction de caractéristiques et apprentissage d'une tête de
+  classification ou d'agrégation commune lorsque cela est possible ;
+- comparer les approches au niveau patch et au niveau WSI, ainsi que leur
+  comportement sur les petites lésions ;
+- caractériser les faux positifs et faux négatifs par une revue morphologique ;
+- comparer la quantité d'annotation nécessaire, les ressources de calcul, la
+  robustesse aux variations techniques et la lisibilité des sorties pour le
+  pathologiste.
 
 ## Méthodes
 
 ### Type d'étude
 
-Il s'agit d'une étude méthodologique rétrospective portant sur des lames
-histologiques numérisées. La phase actuelle utilise le jeu de données public CAMELYON16
-comme base de développement. Ce choix permet de disposer de WSI annotées,
-d'annotations tumorales XML et d'un cadre de comparaison connu dans la
-littérature. L'étude vise à construire une chaîne complète allant de la lame
-entière à une décision interprétable au niveau WSI.
+Il s'agit d'une étude méthodologique rétrospective en deux phases. La première
+phase utilise le jeu public CAMELYON16 pour développer l'algorithme supervisé
+de référence et sécuriser la chaîne complète allant de la lame entière à une
+décision interprétable au niveau WSI. Ce jeu fournit des WSI annotées, des
+contours tumoraux XML et un cadre de comparaison établi dans la littérature.
+
+La seconde phase constituera l'étude principale. Elle comparera l'algorithme
+supervisé local, UNI et Virchow sur une cohorte de lames ganglionnaires
+numérisées dans le service. Les trois approches devront être évaluées sur les
+mêmes cas, avec la même référence anatomopathologique et une séparation des
+données empêchant toute fuite entre adaptation, sélection des seuils et
+évaluation finale.
 
 ### Données
 
@@ -363,6 +382,12 @@ déséquilibre accru entre les classes.
 
 ## Résultats préliminaires
 
+Les résultats présentés dans cette section concernent exclusivement la phase
+préparatoire conduite sur CAMELYON16. Ils décrivent la construction du
+comparateur supervisé et ne répondent pas encore à l'objectif principal de la
+thèse, qui sera évalué par la comparaison directe de ce modèle avec UNI et
+Virchow sur les lames du service.
+
 ### Validation au niveau patch
 
 `Iter7` et `iter8` ont chacun été entraînés pendant 10 époques et évalués sur
@@ -434,39 +459,38 @@ le même jeu de validation et selon une règle WSI définie à l'avance.
 La taille limitée du jeu de validation, la sélection exploratoire de règles sur
 ce même jeu et l'absence actuelle d'évaluation externe imposent une
 interprétation prudente. Le jeu `test_final` reste fermé jusqu'au gel du modèle
-et de la règle de décision.
+et de la règle de décision. Une fois ce comparateur supervisé figé, le travail
+principal portera sur l'évaluation comparative locale ; les itérations sur
+CAMELYON16 constituent donc un moyen de stabiliser le protocole, et non la
+finalité de la thèse.
 
-### Évaluation prévue sur lames du service
+### Étude comparative principale sur les lames du service
 
-À terme, le pipeline sera appliqué à des lames numérisées issues du service,
-afin d'évaluer sa transférabilité hors du jeu CAMELYON16. Cette étape permettra
-d'étudier l'effet des conditions locales : scanner, coloration, préparation des
-tissus, distribution des cas et artefacts propres au workflow du laboratoire.
+L'étude principale sera conduite sur des lames ganglionnaires numérisées issues
+du service. Elle évaluera la transférabilité de l'algorithme supervisé hors de
+CAMELYON16 et le comparera directement à UNI et Virchow dans les conditions
+techniques locales : scanner, coloration, préparation des tissus, distribution
+des cas et artefacts propres au laboratoire.
 
-L'évaluation sur données locales devra être organisée avec une séparation
-stricte entre les lames utilisées pour le développement, la sélection des
-seuils et l'évaluation finale. Selon la disponibilité des annotations, la
-référence pourra reposer sur le diagnostic anatomopathologique, une relecture
-ciblée des régions suspectes et/ou des annotations manuelles de zones
+UNI et Virchow seront utilisés comme extracteurs de caractéristiques de patches
+ou de tuiles WSI. Leurs représentations alimenteront un classifieur supervisé
+léger ou un modèle d'agrégation au niveau de la lame. Le protocole cherchera à
+harmoniser autant que possible les données d'apprentissage, les partitions, la
+référence, la règle de décision et les métriques afin que la comparaison porte
+sur les représentations et non sur des différences évitables de procédure.
+
+La cohorte locale devra être séparée entre adaptation, validation et évaluation
+finale. Selon la disponibilité des annotations, la référence reposera sur le
+diagnostic anatomopathologique, complété par une relecture ciblée des régions
+suspectes et, lorsque nécessaire, par des annotations manuelles des zones
 métastatiques.
 
-### Comparaison future avec UNI et Virchow
-
-La comparaison avec UNI et Virchow constituera une étape ultérieure. Ces
-modèles fondationnels pourront être utilisés comme extracteurs de
-caractéristiques de patches ou de tuiles WSI. Les représentations obtenues
-pourront ensuite alimenter un classifieur supervisé léger ou un modèle
-d'agrégation au niveau lame.
-
-La comparaison devra porter non seulement sur les métriques de performance,
-mais aussi sur :
-
-- la quantité d'annotation nécessaire ;
-- la robustesse aux variations locales ;
-- la capacité à réduire les faux positifs ;
-- la détection des petites métastases ;
-- les contraintes matérielles ;
-- la lisibilité des sorties pour le pathologiste.
+Le critère principal sera défini au niveau de la lame. La sensibilité et la
+spécificité seront rapportées pour chaque approche, accompagnées des matrices
+de confusion et d'intervalles de confiance. Les analyses secondaires porteront
+sur la détection des petites métastases, la morphologie des erreurs, la quantité
+d'annotation nécessaire, les ressources de calcul, la robustesse aux variations
+locales et la lisibilité des sorties pour le pathologiste.
 
 ## Bibliographie de travail
 
