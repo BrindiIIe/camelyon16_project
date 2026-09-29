@@ -22,7 +22,7 @@ une chaîne d'évaluation complète : extraction de patches, apprentissage,
 inférence sur lame entière, génération de cartes de probabilité, décision au
 niveau de la lame et analyse morphologique des erreurs. Cette phase doit
 aboutir à un protocole reproductible qui sera ensuite appliqué aux trois
-approches sur les données du service.
+modèles sur les données du service : notre modèle supervisé, UNI et Virchow.
 
 ## Introduction
 
@@ -122,16 +122,19 @@ détection de métastases mammaires : l'algorithme supervisé local, initialisé
 partir d'un ResNet18 pré-entraîné sur ImageNet puis entraîné sur CAMELYON16, ou
 une approche fondée sur les représentations d'UNI ou de Virchow.
 
-L'hypothèse principale est que les représentations histologiques apprises à
-grande échelle par UNI et Virchow pourraient améliorer la transférabilité aux
-lames du service par rapport à un réseau conventionnel pré-entraîné sur des
-images naturelles. Leur éventuel avantage doit néanmoins être mesuré dans un
-protocole commun, car leur taille et leur diversité d'apprentissage ne
-garantissent pas une meilleure performance pour cette tâche locale précise.
+L'hypothèse principale est qu'UNI et Virchow, pré-entraînés sur de grandes
+collections d'images histologiques, pourraient mieux s'adapter aux lames du
+service que notre modèle supervisé, initialement pré-entraîné sur des images
+non médicales. Cette hypothèse sera testée en comparant notre modèle supervisé
+à UNI et à Virchow sur les mêmes lames, avec la même référence
+anatomopathologique et les mêmes critères d'évaluation. Une meilleure
+performance d'UNI ou de Virchow ne peut pas être supposée sur la seule base de
+leur taille ou du volume de leurs données d'entraînement.
 
-L'objectif principal est de comparer les trois approches sur une même cohorte
-de lames du service et selon une même référence anatomopathologique. La
-comparaison portera en priorité sur la performance au niveau de la lame,
+L'objectif principal est de comparer notre modèle supervisé à UNI et à Virchow
+sur une même cohorte de lames du service et selon une même référence
+anatomopathologique. La comparaison portera en priorité sur la performance au
+niveau de la lame,
 notamment la sensibilité et la spécificité, avec des règles de décision et un
 jeu d'évaluation définis avant l'analyse finale.
 
@@ -146,15 +149,15 @@ Les objectifs secondaires sont :
   données de développement et d'évaluation ;
 - entraîner et comparer plusieurs itérations du classifieur supervisé afin de
   figer la référence locale avant la comparaison principale ;
-- adapter UNI et Virchow à la tâche de détection selon un protocole comparable,
-  par extraction de caractéristiques et apprentissage d'une tête de
-  classification ou d'agrégation commune lorsque cela est possible ;
-- comparer les approches au niveau patch et au niveau WSI, ainsi que leur
+- adapter UNI et Virchow à la détection des métastases ganglionnaires afin de
+  pouvoir les comparer équitablement à notre modèle supervisé sur les lames du
+  service ;
+- comparer les trois modèles au niveau patch et au niveau WSI, ainsi que leur
   comportement sur les petites lésions ;
 - caractériser les faux positifs et faux négatifs par une revue morphologique ;
-- comparer la quantité d'annotation nécessaire, les ressources de calcul, la
-  robustesse aux variations techniques et la lisibilité des sorties pour le
-  pathologiste.
+- décrire les contraintes pratiques de chaque modèle, notamment les besoins en
+  annotation et en ressources informatiques, ainsi que la facilité
+  d'interprétation de leurs résultats.
 
 ## Méthodes
 
@@ -168,7 +171,7 @@ contours tumoraux XML et un cadre de comparaison établi dans la littérature.
 
 La seconde phase constituera l'étude principale. Elle comparera l'algorithme
 supervisé local, UNI et Virchow sur une cohorte de lames ganglionnaires
-numérisées dans le service. Les trois approches devront être évaluées sur les
+numérisées dans le service. Les trois modèles devront être évalués sur les
 mêmes cas, avec la même référence anatomopathologique et une séparation des
 données empêchant toute fuite entre adaptation, sélection des seuils et
 évaluation finale.
@@ -208,19 +211,16 @@ CAMELYON16 avant toute ouverture et toute analyse définitive du test.
 
 ### Prétraitement et extraction de patches
 
-Les WSI sont analysées à partir d'une miniature de la lame. Un seuillage d'Otsu
-produit un masque tissulaire brut, ensuite nettoyé par des opérations
-morphologiques, un comblement des trous et une dilatation. Le masque nettoyé,
-et non le masque brut destiné au diagnostic visuel, définit les centres de
-patches admissibles.
+Afin de limiter l'analyse aux régions contenant du tissu, une image de faible
+résolution de chaque lame est d'abord segmentée par la méthode d'Otsu. Le masque
+obtenu est ensuite corrigé par plusieurs opérations morphologiques afin
+d'éliminer les petites imperfections et de mieux délimiter les régions
+tissulaires. Les patches sont uniquement extraits dans les zones retenues par
+ce masque.
 
-Une erreur de contrat logiciel identifiée au cours des analyses exploratoires
-avait conduit certains calculs historiques à utiliser le premier élément
-retourné par la fonction de masquage, correspondant au masque brut. Une
-fonction explicite, `make_clean_tissue_mask()`, est désormais utilisée par les
-chemins actifs d'extraction et d'inférence. Les résultats WSI considérés comme
-courants ont été recalculés avec ce masque nettoyé et un test de régression
-protège ce comportement.
+Une erreur dans la sélection du masque tissulaire a été identifiée au cours du
+développement. Elle a été corrigée, et l'ensemble des résultats présentés dans
+ce travail a été recalculé avec la méthode corrigée.
 
 Des patches RGB de 256 × 256 pixels sont extraits au niveau de résolution
 maximal de la lame. Les annotations XML des lames tumorales sont utilisées pour
@@ -237,13 +237,22 @@ Les scripts principaux utilisés pour cette étape sont :
 
 ### Modèle supervisé au niveau patch
 
-Le modèle supervisé est un ResNet18 pré-entraîné sur ImageNet, dont la dernière
-couche est remplacée par une sortie binaire : tissu normal versus tissu
-tumoral. L'apprentissage utilise une entropie croisée pondérée en faveur de la
-classe tumorale, l'optimiseur Adam avec un taux d'apprentissage de 10⁻⁴, des
-lots de 32 images et 10 époques. L'augmentation de données comprend des
-retournements horizontaux et verticaux ainsi qu'une variation modérée de
-luminosité et de contraste. La graine aléatoire est fixée à 42.
+Le modèle supervisé repose sur un réseau ResNet18 préalablement entraîné sur
+ImageNet, puis adapté pour classer chaque patch comme tumoral ou non tumoral.
+Il a ensuite été entraîné sur les patches annotés de CAMELYON16. Des
+modifications aléatoires de l'orientation, de la luminosité et du contraste des
+images ont été appliquées pendant l'entraînement afin d'améliorer sa capacité à
+reconnaître des tissus présentant des aspects légèrement différents.
+
+Les principaux paramètres d'entraînement sont résumés ci-dessous :
+
+| Paramètre | Valeur |
+| --- | ---: |
+| Optimiseur | Adam |
+| Taux d'apprentissage | 10⁻⁴ |
+| Taille des lots | 32 patches |
+| Nombre d'époques | 10 |
+| Graine aléatoire | 42 |
 
 Le meilleur checkpoint est sélectionné sur le F1 tumoral du jeu de validation
 patch, sans utiliser les lames du test final. Plusieurs itérations ont été
@@ -467,17 +476,18 @@ finalité de la thèse.
 ### Étude comparative principale sur les lames du service
 
 L'étude principale sera conduite sur des lames ganglionnaires numérisées issues
-du service. Elle évaluera la transférabilité de l'algorithme supervisé hors de
-CAMELYON16 et le comparera directement à UNI et Virchow dans les conditions
-techniques locales : scanner, coloration, préparation des tissus, distribution
-des cas et artefacts propres au laboratoire.
+du service. Elle évaluera la capacité de l'algorithme supervisé à fonctionner
+sur des données différentes de CAMELYON16 et le comparera directement à UNI et
+Virchow dans les conditions techniques locales : scanner, coloration,
+préparation des tissus, distribution des cas et artefacts propres au
+laboratoire.
 
-UNI et Virchow seront utilisés comme extracteurs de caractéristiques de patches
-ou de tuiles WSI. Leurs représentations alimenteront un classifieur supervisé
-léger ou un modèle d'agrégation au niveau de la lame. Le protocole cherchera à
-harmoniser autant que possible les données d'apprentissage, les partitions, la
-référence, la règle de décision et les métriques afin que la comparaison porte
-sur les représentations et non sur des différences évitables de procédure.
+UNI et Virchow devront être adaptés à la détection des métastases
+ganglionnaires, car ils ne fournissent pas directement une décision diagnostique
+pour cette tâche. Le protocole précisera comment leurs résultats seront obtenus
+au niveau de chaque zone puis combinés au niveau de la lame. Notre modèle
+supervisé, UNI et Virchow seront évalués sur les mêmes données, avec la même
+référence anatomopathologique et les mêmes critères de performance.
 
 La cohorte locale devra être séparée entre adaptation, validation et évaluation
 finale. Selon la disponibilité des annotations, la référence reposera sur le
@@ -486,11 +496,11 @@ suspectes et, lorsque nécessaire, par des annotations manuelles des zones
 métastatiques.
 
 Le critère principal sera défini au niveau de la lame. La sensibilité et la
-spécificité seront rapportées pour chaque approche, accompagnées des matrices
+spécificité seront rapportées pour chaque modèle, accompagnées des matrices
 de confusion et d'intervalles de confiance. Les analyses secondaires porteront
-sur la détection des petites métastases, la morphologie des erreurs, la quantité
-d'annotation nécessaire, les ressources de calcul, la robustesse aux variations
-locales et la lisibilité des sorties pour le pathologiste.
+sur la détection des petites métastases et la morphologie des erreurs. Les
+besoins en annotation et en ressources informatiques, ainsi que la facilité
+d'interprétation des résultats, seront également décrits pour chaque modèle.
 
 ## Bibliographie de travail
 

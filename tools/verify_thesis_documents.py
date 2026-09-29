@@ -14,7 +14,7 @@ pdf = PdfReader(PDF_PATH)
 pdf_text = "\n".join(page.extract_text() or "" for page in pdf.pages)
 pdf_checks = {
     "pages_10": len(pdf.pages) == 10,
-    "objective": "objectif principal est de comparer les trois approches" in pdf_text,
+    "objective": "objectif principal est de comparer notre modèle supervisé à UNI et à Virchow" in pdf_text,
     "preparatory_scope": "ne répondent pas encore" in pdf_text and "objectif principal" in pdf_text,
     "uni_virchow": "UNI et Virchow" in pdf_text,
     "iter8_metrics": "0,579" in pdf_text and "0,966" in pdf_text,
@@ -26,8 +26,8 @@ docx = Document(DOCX_PATH)
 docx_text = "\n".join(paragraph.text for paragraph in docx.paragraphs)
 docx_checks = {
     "title_style": docx.paragraphs[0].style.name == "Title",
-    "tables_4": len(docx.tables) == 4,
-    "objective": "objectif principal est de comparer les trois approches" in docx_text,
+    "tables_5": len(docx.tables) == 5,
+    "objective": "objectif principal est de comparer notre modèle supervisé à UNI et à Virchow" in docx_text,
     "preparatory_scope": "ne répondent pas encore à l'objectif principal" in docx_text,
     "no_raw_citation_keys": "@chen" not in docx_text and "@who" not in docx_text,
     "no_duplicate_title": docx_text.count(
