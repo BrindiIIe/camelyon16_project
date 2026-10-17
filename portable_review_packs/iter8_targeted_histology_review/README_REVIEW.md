@@ -41,6 +41,13 @@ d'en conserver une copie datée sans la modifier.
 
 ## Statut de la lecture
 
+Une revue des 36 sites a été exportée le 17 octobre 2026 depuis la première
+version du formulaire. Le fichier brut est conservé sous
+`review_completed_legacy_2026-10-17.csv` et sa synthèse figure dans
+`REVIEW_JUNIOR_SUMMARY_2026-10-17.md`. Les annotations sont complètes, mais le
+nom ou les initiales du lecteur restent à renseigner et une ligne ne porte pas
+de date.
+
 Le formulaire enregistre systématiquement :
 
 - `review_role = junior` ;
