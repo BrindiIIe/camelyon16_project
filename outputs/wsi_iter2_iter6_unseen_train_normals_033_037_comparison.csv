@@ -1,0 +1,7 @@
+model,patch_threshold,min_component_size,fp_slides,n_slides,specificity,total_positive_patches,max_largest_component,fp_slide_ids
+iter2,0.5,40,4,5,0.2,26749,1043,normal_034|normal_035|normal_036|normal_037
+iter6,0.5,40,3,5,0.4,8655,100,normal_034|normal_035|normal_037
+iter2,0.6,30,5,5,0.0,21820,633,normal_033|normal_034|normal_035|normal_036|normal_037
+iter6,0.6,30,3,5,0.4,6907,85,normal_034|normal_035|normal_037
+iter2,0.8,20,4,5,0.2,12648,292,normal_033|normal_034|normal_036|normal_037
+iter6,0.8,20,3,5,0.4,3817,55,normal_034|normal_035|normal_037

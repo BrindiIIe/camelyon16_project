@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lecture junior indépendante — revue histologique Iter8</title>
+<style>
+:root{--navy:#17324d;--blue:#24577f;--pale:#eef5fa;--green:#18794e;--amber:#9a6700;--red:#b42318;--border:#c8d2dc}
+*{box-sizing:border-box}body{font-family:system-ui,-apple-system,sans-serif;margin:0;background:#f3f5f7;color:#17212b}
+header{position:sticky;top:0;z-index:5;background:var(--navy);color:#fff;padding:12px 20px;box-shadow:0 2px 9px #0005}
+.headrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.title{font-weight:750;font-size:1.05rem;margin-right:auto}
+button,.button{border:1px solid #ffffff55;background:#fff;color:var(--navy);border-radius:5px;padding:8px 12px;font-weight:700;cursor:pointer}
+button.secondary{background:transparent;color:#fff}.global{display:grid;grid-template-columns:minmax(210px,1fr) 170px;gap:10px;margin-top:10px;max-width:620px}
+header label{font-size:.78rem;font-weight:700}header input{display:block;width:100%;margin-top:3px;padding:7px;border-radius:4px;border:0}
+main{max-width:1500px;margin:auto;padding:18px}.warning{background:#fff4ce;border-left:5px solid #f0ad00;padding:12px 14px}.info{background:var(--pale);border-left:5px solid var(--blue);padding:12px 14px}
+details{background:#fff;border:1px solid var(--border);border-radius:6px;margin:10px 0;padding:8px}summary{cursor:pointer;font-weight:700}.overview{display:block;max-width:100%;max-height:85vh;margin:10px auto 0}
+.card{background:#fff;margin:22px 0;padding:16px;border-radius:8px;box-shadow:0 2px 8px #0002;border-left:6px solid #aab5bf;scroll-margin-top:145px}.card.complete{border-left-color:var(--green)}
+.card h2{margin:0 0 5px}.status{font-size:.85rem;font-weight:750;color:#5f6b76}.complete .status{color:var(--green)}
+.sheet{display:block;width:100%;max-height:82vh;object-fit:contain;background:#eee;margin-top:10px}.fields{display:grid;grid-template-columns:repeat(3,minmax(210px,1fr));gap:12px;margin-top:14px}
+.fields label{font-size:.88rem;font-weight:700}.required::after{content:' *';color:var(--red)}select,textarea{display:block;width:100%;margin-top:4px;padding:8px;border:1px solid #aab5bf;border-radius:4px;background:#fff}textarea{min-height:82px;resize:vertical}
+.model-info{font-family:ui-monospace,monospace;font-size:.86rem;color:#344}.footer-note{font-size:.85rem;color:#53606b}.danger{border-color:#ffb4ab!important;color:var(--red)!important}
+@media(max-width:900px){header{position:static}.global,.fields{grid-template-columns:1fr}.card{scroll-margin-top:10px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="headrow">
+    <span class="title">Lecture junior indépendante — Iter8</span>
+    <span id="progress">0/36 complets</span>
+    <button onclick="goToNextIncomplete()">Prochain incomplet</button>
+    <button onclick="exportCsv()">Exporter le CSV junior</button>
+    <button class="secondary danger" onclick="clearReview()">Effacer la saisie</button>
+  </div>
+  <div class="global">
+    <label>Nom ou initiales du lecteur<input id="reviewer" autocomplete="name" placeholder="obligatoire pour l’export"></label>
+    <label>Date de lecture<input id="reviewDate" type="date"></label>
+  </div>
+</header>
+<main>
+  <p class="warning"><strong>Données de validation.</strong> Cette lecture sert à comprendre la perte de sensibilité d’Iter8. Aucun patch de ce pack ne doit être ajouté à l’entraînement.</p>
+  <p class="info"><strong>Statut :</strong> lecture junior indépendante et préliminaire. Ne pas consulter une lecture senior avant d’avoir exporté et figé ce CSV. Les métadonnées techniques sont conservées pour assurer la traçabilité de la sélection.</p>
+  <p>Pour qu’un site soit compté comme complet, renseigner le diagnostic du patch central, le motif dominant, la qualité de l’image et le niveau de confiance. Le mécanisme d’échec et le commentaire peuvent rester vides si aucune conclusion supplémentaire n’est possible. La saisie est enregistrée automatiquement dans ce navigateur.</p>
+  <h2>Vues d’ensemble</h2>
+  <details><summary>Vue d’ensemble tumor_071</summary><img class="overview" src="overviews/tumor_071.jpg" alt="Vue d’ensemble tumor_071"></details><details><summary>Vue d’ensemble tumor_074</summary><img class="overview" src="overviews/tumor_074.jpg" alt="Vue d’ensemble tumor_074"></details><details><summary>Vue d’ensemble tumor_096</summary><img class="overview" src="overviews/tumor_096.jpg" alt="Vue d’ensemble tumor_096"></details>
+  <div id="cards"></div>
+  <p class="footer-note">L’export contient les métadonnées de sélection et les réponses junior. Le statut reste « independent_preliminary » jusqu’à une éventuelle lecture senior indépendante puis une adjudication.</p>
+</main>
+<script>
+const rows=[{"candidate_id": "tumor_071_site_01", "slide_id": "tumor_071", "x": "19840", "y": "37248", "selection_reason": "largest_iter7_to_iter8_drop", "iter7_prob": "0.99983788", "iter8_prob": "0.00004008", "probability_drop": "0.99979780", "image": "images/tumor_071_site_01.jpg", "review_role": "junior", "review_status": "independent_preliminary", "site_diagnosis": "", "dominant_pattern": "", "image_quality": "", "confidence": "", "likely_failure_mechanism": "", "reviewer": "", "review_date": "", "notes": ""}, {"candidate_id": "tumor_071_site_02", "slide_id": "tumor_071", "x": "58880", "y": "68992", "selection_reason": "largest_iter7_to_iter8_drop", "iter7_prob": "0.99986923", "iter8_prob": "0.00027513", "probability_drop": "0.99959410", "image": "images/tumor_071_site_02.jpg", "review_role": "junior", "review_status": "independent_preliminary", "site_diagnosis": "", "dominant_pattern": "", "image_quality": "", "confidence": "", "likely_failure_mechanism": "", "reviewer": "", "review_date": "", "notes": ""}, {"candidate_id": "tumor_071_site_03", "slide_id": "tumor_071", "x": "65920", "y": "67712", "selection_reason": "largest_iter7_to_iter8_drop", "iter7_prob": "0.99963498", "iter8_prob": "0.00011586", "probability_drop": "0.99951912", "image": "images/tumor_071_site_03.jpg", "review_role": "junior", "review_status": "independent_preliminary", "site_diagnosis": "", "dominant_pattern": "", "image_quality": "", "confidence": "", "likely_failure_mechanism": "", "reviewer": "", "review_date": "", "notes": ""}, {"candidate_id": "tumor_071_site_04", "slide_id": "tumor_071", "x": "147712", "y": "67200", "selection_reason": "largest_iter7_to_iter8_drop", "iter7_prob": "0.99961829", "iter8_prob": "0.00010317", "probability_drop": "0.99951512", "image": "images/tumor_071_site_04.jpg", "review_role": "junior", "review_status": "independent_preliminary", "site_diagnosis": "", "dominant_pattern": "", "image_quality": "", "confidence": "", "likely_failure_mechanism": "", "reviewer": "", "review_date": "", "notes": ""}, {"candidate_id": "tumor_071_site_05", "slide_id": "tumor_071", "x": "154624", "y": "66816", "selection_reason": "largest_iter7_to_iter8_drop", "iter7_prob": "0.99966168", "iter8_prob": "0.00034274", "probability_drop": "0.99931894", "image": "images/tumor_071_site_05.jpg", "review_role": "junior", "review_status": "independent_preliminary", "site_diagnosis": "", "dominant_pattern": "", "image_quality": "", "confidence": "", "likely_failure_mechanism": "", "reviewer": "", "review_date": "", "notes": ""}, {"candidate_id": "tumor_071_site_06", "slide_id": "tumor_071", "x": "146048", "y": "67328", "selection_reason": "largest_iter7_to_iter8_drop", "iter7_prob": "0.99921834", "iter8_prob": "0.00002134", "probability_drop": "0.99919700", "image": "images/tumor_071_site_06.jpg", "review_role": "junior", "review_status": "independent_preliminary", "site_diagnosis": "", "dominant_pattern": "", "image_quality": "", "confidence": "", "likely_failure_mechanism": "", "reviewer": "", "review_date": "", "notes": ""}, {"candidate_id": "tumor_071_site_07", "slide_id": "tumor_071", "x": "107904", "y": "37888", "selection_reason": "largest_iter7_to_iter8_drop", "iter7_prob": "0.99976820", "iter8_prob": "0.00072601", "probability_drop": "0.99904218", "image": "images/tumor_071_site_07.jpg", "review_role": "junior", "review_status": "independent_preliminary", "site_diagnosis": "", "dominant_pattern": "", "image_quality": "", "confidence": "", "likely_failure_mechanism": "", "reviewer": "", "review_date": "", "notes": ""}, {"candidate_id": "tumor_071_site_08", "slide_id": "tumor_071", "x": "152576", "y": "65408", "selection_reason": "largest_iter7_to_iter8_drop", "iter7_prob": "0.99911982", "iter8_prob": "0.00019790", "probability_drop": "0.99892192", "image": "images/tumor_071_site_08.jpg", "review_role": "junior", "review_status": "independent_preliminary", "site_diagnosis": "", "dominant_pattern": "", "image_quality": "", "confidence": "", "likely_failure_mechanism": "", "reviewer": "", "review_date": "", "notes": ""}, {"candidate_id": "tumor_071_site_09", "slide_id": "tumor_071", "x": "23424", "y": "36352", "selection_reason": "largest_iter7_to_iter8_drop", "iter7_prob": "0.99880719", "iter8_prob": "0.00002484", "probability_drop": "0.99878235", "image": "images/tumor_071_site_09.jpg", "review_role": "junior", "review_status": "independent_preliminary", "site_diagnosis": "", "dominant_pattern": "", "image_quality": "", "confidence": "", "likely_failure_mechanism": "", "reviewer": "", "review_date": "", "notes": ""}, {"candidate_id": "tumor_071_site_10", "slide_id": "tumor_071", "x": "146432", "y": "69120", "selection_reason": "largest_iter7_to_iter8_drop", "iter7_prob": "0.99839777", "iter8_prob": "0.00025584", "probability_drop": "0.99814193", "image": "images/tumor_071_site_10.jpg", "review_role": "junior", "review_status": "independent_preliminary", "site_diagnosis": "", "dominant_pattern": "", "image_quality": "", "confidence": "", "likely_failure_mechanism": "", "reviewer": "", "review_date": "", "notes": ""}, {"candidate_id": "tumor_071_site_11", "slide_id": "tumor_071", "x": "107776", "y": "38400", "selection_reason": "highest_remaining_iter8_signal", "iter7_prob": "0.96814615", "iter8_prob": "0.51230413", "probability_drop": "0.45584202", "image": "images/tumor_071_site_11.jpg", "review_role": "junior", "review_status": "independent_preliminary", "site_diagnosis": "", "dominant_pattern": "", "image_quality": "", "confidence": "", "likely_failure_mechanism": "", "reviewer": "", "review_date": "", "notes": ""}, {"candidate_id": "tumor_071_site_12", "slide_id": "tumor_071", "x": "146560", "y": "66816", "selection_reason": "highest_remaining_iter8_signal", "iter7_prob": "0.96174467", "iter8_prob": "0.13858959", "probability_drop": "0.82315508", "image": "images/tumor_071_site_12.jpg", "review_role": "junior", "review_status": "independent_preliminary", "site_diagnosis": "", "dominant_pattern": "", "image_quality": "", "confidence": "", "likely_failure_mechanism": "", "reviewer": "", "review_date": "", "notes": ""}, {"candidate_id": "tumor_074_site_01", "slide_id": "tumor_074", "x": "21888", "y": "75904", "selection_reason": "largest_iter7_to_iter8_drop", "iter7_prob": "0.99996889", "iter8_prob": "0.00019564", "probability_drop": "0.99977324", "image": "images/tumor_074_site_01.jpg", "review_role": "junior", "review_status": "independent_preliminary", "site_diagnosis": "", "dominant_pattern": "", "image_quality": "", "confidence": "", "likely_failure_mechanism": "", "reviewer": "", "review_date": "", "notes": ""}, {"candidate_id": "tumor_074_site_02", "slide_id": "tumor_074", "x": "22400", "y": "77568", "selection_reason": "largest_iter7_to_iter8_drop", "iter7_prob": "0.99942291", "iter8_prob": "0.00036861", "probability_drop": "0.99905430", "image": "images/tumor_074_site_02.jpg", "review_role": "junior", "review_status": "independent_preliminary", "site_diagnosis": "", "dominant_pattern": "", "image_quality": "", "confidence": "", "likely_failure_mechanism": "", "reviewer": "", "review_date": "", "notes": ""}, {"candidate_id": "tumor_074_site_03", "slide_id": "tumor_074", "x": "24320", "y": "76672", "selection_reason": "largest_iter7_to_iter8_drop", "iter7_prob": "0.99934763", "iter8_prob": "0.00304588", "probability_drop": "0.99630175", "image": "images/tumor_074_site_03.jpg", "review_role": "junior", "review_status": "independent_preliminary", "site_diagnosis": "", "dominant_pattern": "", "image_quality": "", "confidence": "", "likely_failure_mechanism": "", "reviewer": "", "review_date": "", "notes": ""}, {"candidate_id": "tumor_074_site_04", "slide_id": "tumor_074", "x": "21632", "y": "72448", "selection_reason": "largest_iter7_to_iter8_drop", "iter7_prob": "0.99540776", "iter8_prob": "0.00233609", "probability_drop": "0.99307168", "image": "images/tumor_074_site_04.jpg", "review_role": "junior", "review_status": "independent_preliminary", "site_diagnosis": "", "dominant_pattern": "", "image_quality": "", "confidence": "", "likely_failure_mechanism": "", "reviewer": "", "review_date": "", "notes": ""}, {"candidate_id": "tumor_074_site_05", "slide_id": "tumor_074", "x": "24576", "y": "78336", "selection_reason": "largest_iter7_to_iter8_drop", "iter7_prob": "0.99671519", "iter8_prob": "0.00414705", "probability_drop": "0.99256814", "image": "images/tumor_074_site_05.jpg", "review_role": "junior", "review_status": "independent_preliminary", "site_diagnosis": "", "dominant_pattern": "", "image_quality": "", "confidence": "", "likely_failure_mechanism": "", "reviewer": "", "review_date": "", "notes": ""}, {"candidate_id": "tumor_074_site_06", "slide_id": "tumor_074", "x": "21248", "y": "74240", "selection_reason": "largest_iter7_to_iter8_drop", "iter7_prob": "0.96008539", "iter8_prob": "0.00236507", "probability_drop": "0.95772032", "image": "images/tumor_074_site_06.jpg", "review_role": "junior", "review_status": "independent_preliminary", "site_diagnosis": "", "dominant_pattern": "", "image_quality": "", "confidence": "", "likely_failure_mechanism": "", "reviewer": "", "review_date": "", "notes": ""}, {"candidate_id": "tumor_074_site_07", "slide_id": "tumor_074", "x": "23424", "y": "75392", "selection_reason": "largest_iter7_to_iter8_drop", "iter7_prob": "0.99880719", "iter8_prob": "0.27219364", "probability_drop": "0.72661355", "image": "images/tumor_074_site_07.jpg", "review_role": "junior", "review_status": "independent_preliminary", "site_diagnosis": "", "dominant_pattern": "", "image_quality": "", "confidence": "", "likely_failure_mechanism": "", "reviewer": "", "review_date": "", "notes": ""}, {"candidate_id": "tumor_074_site_08", "slide_id": "tumor_074", "x": "21248", "y": "75392", "selection_reason": "largest_iter7_to_iter8_drop", "iter7_prob": "0.99940121", "iter8_prob": "0.00066840", "probability_drop": "0.99873281", "image": "images/tumor_074_site_08.jpg", "review_role": "junior", "review_status": "independent_preliminary", "site_diagnosis": "", "dominant_pattern": "", "image_quality": "", "confidence": "", "likely_failure_mechanism": "", "reviewer": "", "review_date": "", "notes": ""}, {"candidate_id": "tumor_074_site_09", "slide_id": "tumor_074", "x": "22016", "y": "75136", "selection_reason": "largest_iter7_to_iter8_drop", "iter7_prob": "0.99898034", "iter8_prob": "0.00227690", "probability_drop": "0.99670344", "image": "images/tumor_074_site_09.jpg", "review_role": "junior", "review_status": "independent_preliminary", "site_diagnosis": "", "dominant_pattern": "", "image_quality": "", "confidence": "", "likely_failure_mechanism": "", "reviewer": "", "review_date": "", "notes": ""}, {"candidate_id": "tumor_074_site_10", "slide_id": "tumor_074", "x": "23296", "y": "77056", "selection_reason": "largest_iter7_to_iter8_drop", "iter7_prob": "0.99617058", "iter8_prob": "0.00037133", "probability_drop": "0.99579925", "image": "images/tumor_074_site_10.jpg", "review_role": "junior", "review_status": "independent_preliminary", "site_diagnosis": "", "dominant_pattern": "", "image_quality": "", "confidence": "", "likely_failure_mechanism": "", "reviewer": "", "review_date": "", "notes": ""}, {"candidate_id": "tumor_074_site_11", "slide_id": "tumor_074", "x": "23424", "y": "75648", "selection_reason": "highest_remaining_iter8_signal", "iter7_prob": "0.99994731", "iter8_prob": "0.99991930", "probability_drop": "0.00002801", "image": "images/tumor_074_site_11.jpg", "review_role": "junior", "review_status": "independent_preliminary", "site_diagnosis": "", "dominant_pattern": "", "image_quality": "", "confidence": "", "likely_failure_mechanism": "", "reviewer": "", "review_date": "", "notes": ""}, {"candidate_id": "tumor_074_site_12", "slide_id": "tumor_074", "x": "23168", "y": "77696", "selection_reason": "highest_remaining_iter8_signal", "iter7_prob": "1.00000000", "iter8_prob": "0.99991596", "probability_drop": "0.00008404", "image": "images/tumor_074_site_12.jpg", "review_role": "junior", "review_status": "independent_preliminary", "site_diagnosis": "", "dominant_pattern": "", "image_quality": "", "confidence": "", "likely_failure_mechanism": "", "reviewer": "", "review_date": "", "notes": ""}, {"candidate_id": "tumor_096_site_01", "slide_id": "tumor_096", "x": "110720", "y": "19456", "selection_reason": "largest_iter7_to_iter8_drop", "iter7_prob": "0.99978489", "iter8_prob": "0.00032062", "probability_drop": "0.99946426", "image": "images/tumor_096_site_01.jpg", "review_role": "junior", "review_status": "independent_preliminary", "site_diagnosis": "", "dominant_pattern": "", "image_quality": "", "confidence": "", "likely_failure_mechanism": "", "reviewer": "", "review_date": "", "notes": ""}, {"candidate_id": "tumor_096_site_02", "slide_id": "tumor_096", "x": "113280", "y": "19200", "selection_reason": "largest_iter7_to_iter8_drop", "iter7_prob": "0.99936825", "iter8_prob": "0.00039981", "probability_drop": "0.99896844", "image": "images/tumor_096_site_02.jpg", "review_role": "junior", "review_status": "independent_preliminary", "site_diagnosis": "", "dominant_pattern": "", "image_quality": "", "confidence": "", "likely_failure_mechanism": "", "reviewer": "", "review_date": "", "notes": ""}, {"candidate_id": "tumor_096_site_03", "slide_id": "tumor_096", "x": "40320", "y": "15872", "selection_reason": "largest_iter7_to_iter8_drop", "iter7_prob": "0.99892586", "iter8_prob": "0.00017011", "probability_drop": "0.99875576", "image": "images/tumor_096_site_03.jpg", "review_role": "junior", "review_status": "independent_preliminary", "site_diagnosis": "", "dominant_pattern": "", "image_quality": "", "confidence": "", "likely_failure_mechanism": "", "reviewer": "", "review_date": "", "notes": ""}, {"candidate_id": "tumor_096_site_04", "slide_id": "tumor_096", "x": "113792", "y": "16256", "selection_reason": "largest_iter7_to_iter8_drop", "iter7_prob": "0.99986184", "iter8_prob": "0.00156310", "probability_drop": "0.99829873", "image": "images/tumor_096_site_04.jpg", "review_role": "junior", "review_status": "independent_preliminary", "site_diagnosis": "", "dominant_pattern": "", "image_quality": "", "confidence": "", "likely_failure_mechanism": "", "reviewer": "", "review_date": "", "notes": ""}, {"candidate_id": "tumor_096_site_05", "slide_id": "tumor_096", "x": "43904", "y": "12160", "selection_reason": "largest_iter7_to_iter8_drop", "iter7_prob": "0.99711728", "iter8_prob": "0.00013065", "probability_drop": "0.99698663", "image": "images/tumor_096_site_05.jpg", "review_role": "junior", "review_status": "independent_preliminary", "site_diagnosis": "", "dominant_pattern": "", "image_quality": "", "confidence": "", "likely_failure_mechanism": "", "reviewer": "", "review_date": "", "notes": ""}, {"candidate_id": "tumor_096_site_06", "slide_id": "tumor_096", "x": "118784", "y": "22528", "selection_reason": "largest_iter7_to_iter8_drop", "iter7_prob": "0.99738044", "iter8_prob": "0.00060669", "probability_drop": "0.99677374", "image": "images/tumor_096_site_06.jpg", "review_role": "junior", "review_status": "independent_preliminary", "site_diagnosis": "", "dominant_pattern": "", "image_quality": "", "confidence": "", "likely_failure_mechanism": "", "reviewer": "", "review_date": "", "notes": ""}, {"candidate_id": "tumor_096_site_07", "slide_id": "tumor_096", "x": "42112", "y": "16896", "selection_reason": "largest_iter7_to_iter8_drop", "iter7_prob": "0.99574608", "iter8_prob": "0.00000106", "probability_drop": "0.99574501", "image": "images/tumor_096_site_07.jpg", "review_role": "junior", "review_status": "independent_preliminary", "site_diagnosis": "", "dominant_pattern": "", "image_quality": "", "confidence": "", "likely_failure_mechanism": "", "reviewer": "", "review_date": "", "notes": ""}, {"candidate_id": "tumor_096_site_08", "slide_id": "tumor_096", "x": "41472", "y": "12672", "selection_reason": "largest_iter7_to_iter8_drop", "iter7_prob": "0.99112695", "iter8_prob": "0.00030561", "probability_drop": "0.99082135", "image": "images/tumor_096_site_08.jpg", "review_role": "junior", "review_status": "independent_preliminary", "site_diagnosis": "", "dominant_pattern": "", "image_quality": "", "confidence": "", "likely_failure_mechanism": "", "reviewer": "", "review_date": "", "notes": ""}, {"candidate_id": "tumor_096_site_09", "slide_id": "tumor_096", "x": "111616", "y": "14720", "selection_reason": "largest_iter7_to_iter8_drop", "iter7_prob": "0.99028242", "iter8_prob": "0.00043666", "probability_drop": "0.98984575", "image": "images/tumor_096_site_09.jpg", "review_role": "junior", "review_status": "independent_preliminary", "site_diagnosis": "", "dominant_pattern": "", "image_quality": "", "confidence": "", "likely_failure_mechanism": "", "reviewer": "", "review_date": "", "notes": ""}, {"candidate_id": "tumor_096_site_10", "slide_id": "tumor_096", "x": "42624", "y": "15360", "selection_reason": "largest_iter7_to_iter8_drop", "iter7_prob": "0.97859943", "iter8_prob": "0.00064991", "probability_drop": "0.97794952", "image": "images/tumor_096_site_10.jpg", "review_role": "junior", "review_status": "independent_preliminary", "site_diagnosis": "", "dominant_pattern": "", "image_quality": "", "confidence": "", "likely_failure_mechanism": "", "reviewer": "", "review_date": "", "notes": ""}, {"candidate_id": "tumor_096_site_11", "slide_id": "tumor_096", "x": "40576", "y": "16000", "selection_reason": "highest_remaining_iter8_signal", "iter7_prob": "0.99992466", "iter8_prob": "0.29402223", "probability_drop": "0.70590243", "image": "images/tumor_096_site_11.jpg", "review_role": "junior", "review_status": "independent_preliminary", "site_diagnosis": "", "dominant_pattern": "", "image_quality": "", "confidence": "", "likely_failure_mechanism": "", "reviewer": "", "review_date": "", "notes": ""}, {"candidate_id": "tumor_096_site_12", "slide_id": "tumor_096", "x": "42240", "y": "11520", "selection_reason": "highest_remaining_iter8_signal", "iter7_prob": "0.94838911", "iter8_prob": "0.01827432", "probability_drop": "0.93011479", "image": "images/tumor_096_site_12.jpg", "review_role": "junior", "review_status": "independent_preliminary", "site_diagnosis": "", "dominant_pattern": "", "image_quality": "", "confidence": "", "likely_failure_mechanism": "", "reviewer": "", "review_date": "", "notes": ""}];
+const outputFields=["candidate_id", "slide_id", "x", "y", "selection_reason", "iter7_prob", "iter8_prob", "probability_drop", "image", "review_role", "review_status", "site_diagnosis", "dominant_pattern", "image_quality", "confidence", "likely_failure_mechanism", "reviewer", "review_date", "notes"];
+const storageKey='iter8_targeted_histology_review_junior_v2';
+const stored=JSON.parse(localStorage.getItem(storageKey)||'{}');
+let state=stored.rows||{};
+const globalState=stored.global||{};
+const requiredFields=['site_diagnosis','dominant_pattern','image_quality','confidence'];
+const choices={
+  site_diagnosis:[
+    ['','— choisir —'],['tumor','Tumeur présente'],['benign','Tissu bénin'],['uncertain','Incertain'],['non_evaluable','Non évaluable']
+  ],
+  dominant_pattern:[
+    ['','— choisir —'],['cohesive_metastasis','Métastase cohésive'],['small_tumor_clusters','Petits amas tumoraux'],['isolated_tumor_cells','Cellules tumorales isolées'],['low_tumor_fraction','Faible proportion tumorale'],['tumor_in_fibrosis_or_desmoplasia','Tumeur dans fibrose/desmoplasie'],['tumor_in_necrosis','Tumeur dans nécrose'],['benign_lymphoid_tissue','Tissu lymphoïde bénin'],['sinus_histiocytosis','Histiocytose sinusale'],['vessel_or_lumen','Vaisseau ou lumière'],['adipose_or_capsule','Tissu adipeux ou capsule'],['processing_artifact','Artefact de préparation'],['annotation_edge','Bord d’annotation'],['other','Autre'],['none','Aucun motif dominant'],['uncertain','Incertain']
+  ],
+  image_quality:[
+    ['','— choisir —'],['good','Bonne'],['interpretable_with_limitations','Interprétable avec limites'],['non_evaluable','Non évaluable']
+  ],
+  confidence:[
+    ['','— choisir —'],['high','Élevée'],['medium','Moyenne'],['low','Faible']
+  ],
+  likely_failure_mechanism:[
+    ['','— facultatif —'],['subtle_tumor_morphology','Morphologie tumorale discrète'],['low_tumor_fraction','Faible proportion tumorale'],['fibrosis_or_desmoplasia','Fibrose ou desmoplasie'],['necrosis','Nécrose'],['artifact','Artefact'],['stain_or_color_shift','Variation de coloration'],['annotation_or_sampling','Annotation ou échantillonnage'],['class_exposure_shift','Déséquilibre de l’entraînement'],['unclear','Mécanisme non déterminé'],['not_applicable','Non applicable']
+  ]
+};
+function esc(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function selectField(field,id,label,required=false){
+  const value=state[id]?.[field]||'';
+  const options=choices[field].map(([code,text])=>`<option value="${esc(code)}" ${value===code?'selected':''}>${esc(text)}</option>`).join('');
+  return `<label><span class="${required?'required':''}">${esc(label)}</span><select data-id="${esc(id)}" data-field="${field}">${options}</select></label>`;
+}
+function isComplete(id){return requiredFields.every(field=>Boolean(state[id]?.[field]))}
+function renderCards(){
+  const cards=document.getElementById('cards');
+  cards.innerHTML='';
+  rows.forEach((row,index)=>{
+    const id=row.candidate_id;
+    const notes=state[id]?.notes||'';
+    const complete=isComplete(id);
+    cards.insertAdjacentHTML('beforeend',`<article class="card ${complete?'complete':''}" id="card-${esc(id)}">
+      <h2>${index+1}/36 — ${esc(id)}</h2>
+      <div class="status">${complete?'Complet':'À compléter'}</div>
+      <img class="sheet" loading="lazy" src="${esc(row.image)}" alt="${esc(id)}">
+      <details><summary>Afficher les informations du modèle</summary><p class="model-info">${esc(row.slide_id)} · centre (${esc(row.x)}, ${esc(row.y)}) · sélection=${esc(row.selection_reason)} · Iter7=${Number(row.iter7_prob).toFixed(4)} · Iter8=${Number(row.iter8_prob).toFixed(4)} · chute=${Number(row.probability_drop).toFixed(4)}</p></details>
+      <div class="fields">
+        ${selectField('site_diagnosis',id,'Diagnostic du patch central',true)}
+        ${selectField('dominant_pattern',id,'Motif histologique dominant',true)}
+        ${selectField('image_quality',id,'Qualité de l’image',true)}
+        ${selectField('confidence',id,'Niveau de confiance',true)}
+        ${selectField('likely_failure_mechanism',id,'Mécanisme probable de la perte de signal')}
+        <label>Commentaire<textarea data-id="${esc(id)}" data-field="notes" placeholder="éléments morphologiques, limites ou hésitation">${esc(notes)}</textarea></label>
+      </div>
+    </article>`);
+  });
+  updateProgress();
+}
+function saveState(){
+  globalState.reviewer=document.getElementById('reviewer').value.trim();
+  globalState.review_date=document.getElementById('reviewDate').value;
+  localStorage.setItem(storageKey,JSON.stringify({rows:state,global:globalState}));
+}
+function updateProgress(){
+  const count=rows.filter(row=>isComplete(row.candidate_id)).length;
+  document.getElementById('progress').textContent=`${count}/${rows.length} complets`;
+  document.querySelectorAll('.card').forEach(card=>{
+    const id=card.id.replace('card-','');
+    const complete=isComplete(id);
+    card.classList.toggle('complete',complete);
+    card.querySelector('.status').textContent=complete?'Complet':'À compléter';
+  });
+}
+document.addEventListener('input',event=>{
+  const id=event.target.dataset.id;
+  if(id){state[id]=state[id]||{};state[id][event.target.dataset.field]=event.target.value;}
+  saveState();updateProgress();
+});
+document.addEventListener('change',event=>{
+  const id=event.target.dataset.id;
+  if(id){state[id]=state[id]||{};state[id][event.target.dataset.field]=event.target.value;}
+  saveState();updateProgress();
+});
+function goToNextIncomplete(){
+  const row=rows.find(item=>!isComplete(item.candidate_id));
+  if(!row){alert('Les 36 sites sont complets.');return;}
+  document.getElementById(`card-${row.candidate_id}`).scrollIntoView({behavior:'smooth',block:'start'});
+}
+function csvCell(value){
+  value=String(value??'');
+  return /[,"\r\n]/.test(value)?'"'+value.replaceAll('"','""')+'"':value;
+}
+function exportCsv(){
+  saveState();
+  const reviewer=globalState.reviewer||'';
+  const reviewDate=globalState.review_date||'';
+  if(!reviewer){alert('Renseigner le nom ou les initiales du lecteur avant l’export.');document.getElementById('reviewer').focus();return;}
+  if(!reviewDate){alert('Renseigner la date de lecture avant l’export.');document.getElementById('reviewDate').focus();return;}
+  const incomplete=rows.filter(row=>!isComplete(row.candidate_id)).length;
+  if(incomplete && !confirm(`${incomplete} site(s) sont incomplets. Exporter tout de même une sauvegarde provisoire ?`))return;
+  const lines=[outputFields.join(',')];
+  rows.forEach(row=>{
+    const answer=state[row.candidate_id]||{};
+    const merged={...row,...answer,review_role:'junior',review_status:'independent_preliminary',reviewer,review_date:reviewDate};
+    lines.push(outputFields.map(field=>csvCell(merged[field]??'')).join(','));
+  });
+  const blob=new Blob([String.fromCharCode(0xfeff)+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const link=document.createElement('a');
+  link.href=URL.createObjectURL(blob);
+  link.download=`iter8_targeted_histology_review_junior_${reviewDate}.csv`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+function clearReview(){
+  if(confirm('Effacer définitivement toute la saisie junior enregistrée dans ce navigateur ?')){
+    localStorage.removeItem(storageKey);location.reload();
+  }
+}
+document.getElementById('reviewer').value=globalState.reviewer||'';
+document.getElementById('reviewDate').value=globalState.review_date||new Date().toISOString().slice(0,10);
+renderCards();saveState();
+</script>
+</body>
+</html>

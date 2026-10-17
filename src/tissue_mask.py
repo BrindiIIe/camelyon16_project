@@ -71,6 +71,17 @@ def make_tissue_mask(rgb_image):
     return raw, mask, thr
 
 
+def make_clean_tissue_mask(rgb_image):
+    """
+    Return only the cleaned tissue mask used for patch selection.
+
+    Keeping this accessor separate avoids accidentally selecting the first
+    element of ``make_tissue_mask()``, which is the diagnostic raw Otsu mask.
+    """
+    _, cleaned_mask, _ = make_tissue_mask(rgb_image)
+    return cleaned_mask
+
+
 def main():
     from pathlib import Path
 

@@ -1,7 +1,7 @@
 from pathlib import Path
 import random
 import xml.etree.ElementTree as ET
-from tissue_mask import make_tissue_mask
+from tissue_mask import make_clean_tissue_mask
 from scipy.ndimage import distance_transform_edt
 
 from PIL import Image
@@ -293,7 +293,7 @@ def process_slide(
 
     thumb = slide.get_thumbnail((1200, 1200)).convert("RGB")
     thumb_np = np.array(thumb)
-    tissue_mask, *_ = make_tissue_mask(thumb_np)
+    tissue_mask = make_clean_tissue_mask(thumb_np)
     tissue_mask = tissue_mask.astype(bool)
 
     candidate_centers = generate_candidate_centers(

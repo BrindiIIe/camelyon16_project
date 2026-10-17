@@ -1,5 +1,9 @@
 # Projet de thèse - Détection de métastases ganglionnaires par IA sur lames virtuelles
 
+> **Note historique :** ce document présente le cadrage initial du projet.
+> L'état expérimental courant, notamment les résultats `iter7` et le démarrage
+> d'`iter8`, est consigné dans `PROJECT_STATE.md`.
+
 ## 1. Question clinique
 
 L'objectif du projet est de développer et d'évaluer un pipeline d'aide à la détection de métastases ganglionnaires sur lames histologiques numérisées, à partir du jeu de données public CAMELYON16.

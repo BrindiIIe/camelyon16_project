@@ -1,0 +1,2 @@
+patch_threshold,min_component_size,n_slides,sensitivity,specificity,precision,f1,accuracy,tp,fp,fn,tn
+0.5,40,48,0.8421052631578947,0.4482758620689655,0.5,0.6274509803921569,0.6041666666666666,16,16,3,13

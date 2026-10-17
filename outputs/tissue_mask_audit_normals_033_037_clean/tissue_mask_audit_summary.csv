@@ -1,0 +1,6 @@
+slide_id,thumbnail_width,thumbnail_height,otsu_threshold,raw_pixels,cleaned_pixels,added_pixels,removed_pixels,raw_fraction,cleaned_fraction,audit_image
+normal_033,532,1200,0.739560964307598,48011,51011,10955,7955,0.07520520050125314,0.07990444862155388,outputs\tissue_mask_audit_normals_033_037_clean\normal_033_mask_audit.png
+normal_034,531,1200,0.7325010623468138,69836,77851,14339,6324,0.10959824231010672,0.122176710608914,outputs\tissue_mask_audit_normals_033_037_clean\normal_034_mask_audit.png
+normal_035,531,1200,0.8113204656862745,10458,6164,1551,5845,0.016412429378531074,0.009673571876961707,outputs\tissue_mask_audit_normals_033_037_clean\normal_035_mask_audit.png
+normal_036,531,1200,0.7378982843137255,40562,43909,4595,1248,0.06365662272441934,0.06890929064657879,outputs\tissue_mask_audit_normals_033_037_clean\normal_036_mask_audit.png
+normal_037,544,1200,0.7533338396139706,37613,48298,13142,2457,0.05761795343137255,0.0739859068627451,outputs\tissue_mask_audit_normals_033_037_clean\normal_037_mask_audit.png

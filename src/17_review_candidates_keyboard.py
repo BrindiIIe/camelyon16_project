@@ -1,13 +1,27 @@
 from pathlib import Path
 import argparse
 import csv
+import gc
+import os
 import shutil
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+os.environ.setdefault("MPLCONFIGDIR", str(PROJECT_ROOT / ".matplotlib_cache"))
 
 import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 
+try:
+    from PIL import Image
+except ImportError:
+    Image = None
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+LEGACY_PROJECT_ROOTS = [
+    Path("/Volumes/TX/camelyon16_project"),
+]
+
+CSV_BASE_DIR = None
 
 MODE_CONFIG = {
     "fp": {
@@ -79,13 +93,33 @@ def write_rows(path, rows, fieldnames):
         writer.writerows(rows)
 
 
+def resolve_review_path(value):
+    path = Path(value)
+    candidates = [path]
+
+    if not path.is_absolute() and CSV_BASE_DIR is not None:
+        candidates.append(CSV_BASE_DIR / path)
+
+    for legacy_root in LEGACY_PROJECT_ROOTS:
+        try:
+            relative = path.relative_to(legacy_root)
+        except ValueError:
+            continue
+        candidates.append(PROJECT_ROOT / relative)
+
+    for candidate in candidates:
+        if candidate.exists() and not candidate.name.startswith("._"):
+            return candidate
+    return None
+
+
 def first_existing_path(row, columns):
     for column in columns:
         value = row.get(column, "")
         if not value:
             continue
-        path = Path(value)
-        if path.exists() and not path.name.startswith("._"):
+        path = resolve_review_path(value)
+        if path is not None:
             return path, column
     return None, None
 
@@ -143,6 +177,30 @@ def row_label(row):
     return "_".join(parts) if parts else "row"
 
 
+def row_key(row):
+    return tuple(
+        str(row.get(key, "")).strip()
+        for key in ["slide_id", "component_id", "candidate_id"]
+    )
+
+
+def reference_summary(row, include_column):
+    if row is None:
+        return "reference: aucune ligne correspondante"
+
+    values = [
+        ("binaire", row.get("binary_label", "")),
+        ("morphologie", row.get("morphology_category", "")),
+        ("difficulte", row.get("difficulty_type", "")),
+        ("inclusion", row.get(include_column, "")),
+        ("notes", row.get("notes", "")),
+    ]
+    rendered = " | ".join(
+        f"{label}={value or '—'}" for label, value in values
+    )
+    return f"REPONSE JUNIOR FIGEE: {rendered}"
+
+
 def make_title(row, idx, total, mode_config, image_column, controls):
     metadata = []
     for key in [
@@ -177,13 +235,41 @@ def make_title(row, idx, total, mode_config, image_column, controls):
     )
 
 
-def show_image_and_wait(image_path, title):
-    img = mpimg.imread(image_path)
-    fig = plt.figure(figsize=(12, 9))
-    ax = fig.add_subplot(111)
-    ax.imshow(img)
-    ax.axis("off")
-    ax.set_title(title, fontsize=9)
+def load_display_image(image_path, max_dim):
+    if Image is None:
+        return mpimg.imread(image_path)
+
+    with Image.open(image_path) as src:
+        image = src.convert("RGB")
+        image.thumbnail((max_dim, max_dim))
+        return image.copy()
+
+
+def show_images_and_wait(image_path, overview_path, title, fig_size, max_display_dim):
+    img = load_display_image(image_path, max_display_dim)
+    overview = None
+    if overview_path is not None and overview_path != image_path:
+        overview = load_display_image(overview_path, max_display_dim)
+        fig, (patch_ax, overview_ax) = plt.subplots(
+            1,
+            2,
+            figsize=fig_size,
+            gridspec_kw={"width_ratios": [1.7, 1.0]},
+        )
+        patch_ax.imshow(img)
+        patch_ax.axis("off")
+        patch_ax.set_title("Patchs de la composante", fontsize=10)
+        overview_ax.imshow(overview)
+        overview_ax.axis("off")
+        overview_ax.set_title("WSI et zones detectees", fontsize=10)
+        fig.suptitle(title, fontsize=8)
+        fig.subplots_adjust(top=0.72, left=0.01, right=0.99, bottom=0.01, wspace=0.03)
+    else:
+        fig = plt.figure(figsize=fig_size)
+        ax = fig.add_subplot(111)
+        ax.imshow(img)
+        ax.axis("off")
+        ax.set_title(title, fontsize=9)
 
     key_pressed = {"key": None}
 
@@ -193,6 +279,11 @@ def show_image_and_wait(image_path, title):
 
     fig.canvas.mpl_connect("key_press_event", on_key)
     plt.show()
+    plt.close(fig)
+    del img
+    if overview is not None:
+        del overview
+    gc.collect()
     return key_pressed["key"]
 
 
@@ -208,17 +299,37 @@ def parse_args():
     )
     parser.add_argument("--csv", default=None, help="Review CSV to update in place.")
     parser.add_argument("--sorted-dir", default=None, help="Directory where reviewed images are copied by category.")
+    parser.add_argument(
+        "--reference-csv",
+        default=None,
+        help=(
+            "Optional frozen review CSV displayed for comparison. "
+            "It is read-only and is never modified."
+        ),
+    )
     parser.add_argument("--include-reviewed", action="store_true", help="Show rows already reviewed.")
     parser.add_argument("--start", type=int, default=1, help="1-based row index to start from.")
+    parser.add_argument("--fig-width", type=float, default=12.0, help="Matplotlib review window width in inches.")
+    parser.add_argument("--fig-height", type=float, default=9.0, help="Matplotlib review window height in inches.")
+    parser.add_argument(
+        "--max-display-dim",
+        type=int,
+        default=1800,
+        help="Maximum displayed image width/height in pixels. Source files are not modified.",
+    )
+    parser.add_argument("--no-overview", action="store_true", help="Do not display the WSI overview beside the patch sheet.")
     return parser.parse_args()
 
 
 def main():
+    global CSV_BASE_DIR
+
     args = parse_args()
     config = MODE_CONFIG[args.mode]
     csv_path = Path(args.csv) if args.csv else config["default_csv"]
     sorted_dir = Path(args.sorted_dir) if args.sorted_dir else config["default_sorted_dir"]
     include_column = config["include_column"]
+    CSV_BASE_DIR = csv_path.resolve().parent
 
     if not csv_path.exists():
         raise FileNotFoundError(csv_path)
@@ -229,6 +340,15 @@ def main():
     if not rows:
         print("Aucune ligne a relire.")
         return
+
+    reference_rows = {}
+    if args.reference_csv:
+        reference_path = Path(args.reference_csv)
+        if not reference_path.exists():
+            raise FileNotFoundError(reference_path)
+        frozen_rows, _ = read_rows(reference_path)
+        reference_rows = {row_key(row): row for row in frozen_rows}
+        print("CSV de reference (lecture seule):", reference_path)
 
     idx = max(0, args.start - 1)
     reviewed_count = 0
@@ -259,9 +379,26 @@ def main():
             idx += 1
             continue
 
-        controls = f"current review: {row.get('review_category', '')} / {row.get(include_column, '')}"
-        title = make_title(row, idx, len(rows), config, image_column, controls)
-        key = show_image_and_wait(image_path, title)
+        overview_path = None
+        if row.get("overview") and not args.no_overview:
+            overview_path = resolve_review_path(row["overview"])
+
+        controls = (
+            f"current review: {row.get('review_category', '')} / "
+            f"{row.get(include_column, '')}"
+        )
+        if reference_rows:
+            frozen_row = reference_rows.get(row_key(row))
+            controls += "\n" + reference_summary(frozen_row, include_column)
+        shown_images = image_column + (" + overview" if overview_path else "")
+        title = make_title(row, idx, len(rows), config, shown_images, controls)
+        key = show_images_and_wait(
+            image_path,
+            overview_path,
+            title,
+            (args.fig_width, args.fig_height),
+            args.max_display_dim,
+        )
 
         if key in CONTROL_KEYS:
             action = CONTROL_KEYS[key]

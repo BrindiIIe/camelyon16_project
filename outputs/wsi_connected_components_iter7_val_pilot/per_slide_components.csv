@@ -1,0 +1,2 @@
+slide_id,true_label,patch_threshold,min_component_size,max_prob,positive_patches,largest_component,pred_label
+normal_012,0,0.5,40,0.9977376461029053,133,19,0

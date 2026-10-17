@@ -1,4 +1,4 @@
-slide_id,true_label,patch_threshold,min_component_size,max_prob,positive_patches,largest_component,pred_label
+qslide_id,true_label,patch_threshold,min_component_size,max_prob,positive_patches,largest_component,pred_label
 tumor_001,1,0.9,10,1.0,2824,1093,1
 tumor_002,1,0.9,10,0.9999737739562988,287,10,1
 tumor_003,1,0.9,10,1.0,824,306,1
