@@ -37,8 +37,8 @@ from reportlab.platypus import (
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "docs" / "these_intro_methodes_brouillon.md"
-DOCX_OUT = ROOT / "output" / "docs" / "Introduction_Methodes_Resultats_preliminaires_Comparaison_UNI_Virchow_2026-09-29.docx"
-PDF_OUT = ROOT / "output" / "pdf" / "Introduction_Methodes_Resultats_preliminaires_Comparaison_UNI_Virchow_2026-09-29.pdf"
+DOCX_OUT = ROOT / "output" / "docs" / "Introduction_Methodes_Resultats_preliminaires_Comparaison_UNI_Virchow_2026-10-17.docx"
+PDF_OUT = ROOT / "output" / "pdf" / "Introduction_Methodes_Resultats_preliminaires_Comparaison_UNI_Virchow_2026-10-17.pdf"
 
 TITLE = (
     "Comparaison d'un algorithme supervisé et des modèles fondationnels UNI et Virchow "
@@ -46,7 +46,7 @@ TITLE = (
     "histologiques numérisées du service"
 )
 SUBTITLE = "Introduction, méthodes et résultats préliminaires"
-VERSION = "Version de travail — 29 septembre 2026"
+VERSION = "Version de travail — 17 octobre 2026"
 
 NAVY = "1F4E78"
 PALE_BLUE = "EAF1F8"
@@ -295,11 +295,11 @@ def configure_docx_styles(doc: Document) -> None:
     else:
         ref = styles["Reference"]
     ref.font.name = "Times New Roman"
-    ref.font.size = Pt(9.5)
+    ref.font.size = Pt(8.5)
     ref.paragraph_format.left_indent = Cm(0.65)
     ref.paragraph_format.first_line_indent = Cm(-0.65)
-    ref.paragraph_format.space_after = Pt(4)
-    ref.paragraph_format.line_spacing = 1.05
+    ref.paragraph_format.space_after = Pt(1)
+    ref.paragraph_format.line_spacing = 1.0
 
 
 def configure_section(section, *, first: bool = False) -> None:
@@ -633,11 +633,11 @@ def make_pdf_styles():
         "reference": ParagraphStyle(
             "ReferenceCustom",
             fontName="TimesNewRoman",
-            fontSize=9.2,
-            leading=11.2,
+            fontSize=8.2,
+            leading=9.2,
             leftIndent=0.65 * cm,
             firstLineIndent=-0.65 * cm,
-            spaceAfter=4,
+            spaceAfter=1,
         ),
     }
 

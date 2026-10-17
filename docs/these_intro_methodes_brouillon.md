@@ -1,6 +1,6 @@
 # Introduction, méthodes et résultats préliminaires
 
-*Version de travail — 29 septembre 2026*
+*Version de travail — 17 octobre 2026*
 
 ## Titre de travail
 
@@ -447,31 +447,53 @@ la perte de signal tumoral localisé concerne principalement `tumor_071`,
 patches aux polygones tumoraux ; elle ne mesure ni la surface de recouvrement ni
 la sensibilité par lésion.
 
-Une revue histologique ciblée de 36 sites a été préparée sur ces trois lames :
-dix zones présentant les plus fortes chutes de probabilité et deux zones de
-signal résiduel maximal par lame. Cette revue vise à identifier les motifs
-tumoraux devenus difficiles après l'enrichissement négatif. Les lames
-appartiennent à la validation : elles peuvent guider l'hypothèse expérimentale,
-mais leurs patches ne seront pas intégrés à l'entraînement.
+Une revue histologique junior ciblée a ensuite été réalisée sur 36 sites : dix
+zones présentant les plus fortes chutes de probabilité et deux zones de signal
+résiduel maximal par lame. Parmi les 30 sites à forte chute, 28 contenaient de
+la tumeur au centre du patch (93,3 %). Les six sites de contrôle contenaient
+également de la tumeur. La perte de signal ne s'explique donc pas principalement
+par des patches situés hors de la tumeur.
+
+Les motifs observés différaient entre les lames. `Tumor_096` était dominée par
+la fibrose ou la desmoplasie, retrouvée comme mécanisme probable dans 9 sites
+sur 12. `Tumor_074` associait surtout des métastases cohésives et des bords
+d'annotation, avec un mécanisme d'annotation ou d'échantillonnage proposé dans
+7 sites sur 12. `Tumor_071` présentait un profil plus hétérogène, comprenant
+des métastases cohésives, de la nécrose et plusieurs mécanismes incertains.
+Cette lecture reste préliminaire et devra être complétée, si possible, par une
+lecture senior indépendante. Les lames appartiennent à la validation : elles
+servent à comprendre l'échec mais leurs patches ne sont pas intégrés à
+l'entraînement.
 
 ### Interprétation provisoire et étape suivante
 
 Les résultats montrent que le hard-negative mining est efficace pour corriger
 les faux positifs bénins ciblés, mais qu'un ajout massif de négatifs sans apport
 tumoral parallèle peut déplacer excessivement la frontière de décision. La
-prochaine expérience devra donc tester un enrichissement équilibré : maintien
-des hard negatives déjà validés, ajout de hard positives provenant uniquement
-des WSI d'entraînement et/ou rééquilibrage de l'exposition aux classes pendant
-l'apprentissage. Cette expérience devra être comparée à `iter7` et `iter8` sur
-le même jeu de validation et selon une règle WSI définie à l'avance.
+revue ciblée confirme que cette perte concerne majoritairement de véritables
+zones tumorales. Aucune nouvelle itération fondée uniquement sur l'ajout de
+hard negatives n'est donc prévue avant l'évaluation finale.
+
+Le comparateur supervisé et sa règle WSI ont été figés avant toute inférence
+sur le jeu `test_final`. Le critère retenu impose une sensibilité de 100 % sur
+les 19 lames tumorales de validation, puis maximise la spécificité parmi les
+couples modèle-règle satisfaisant cette contrainte. Une grille commune à
+`iter7` et `iter8` a ainsi retenu `iter8`, un seuil patch de 0,25 et une
+composante minimale d'un patch. Sur la validation, ce point de fonctionnement
+détecte 19 lames tumorales sur 19 et 8 lames normales sur 29, soit une
+sensibilité de 1,000 et une spécificité de 0,276. La précision est de 0,475 et
+le F1 de 0,644. Ce choix privilégie explicitement l'absence de faux négatif au
+prix d'un nombre élevé de faux positifs ; il correspond à un outil de repérage
+sensible nécessitant une validation par le pathologiste, et non à une décision
+diagnostique autonome.
 
 La taille limitée du jeu de validation, la sélection exploratoire de règles sur
 ce même jeu et l'absence actuelle d'évaluation externe imposent une
-interprétation prudente. Le jeu `test_final` reste fermé jusqu'au gel du modèle
-et de la règle de décision. Une fois ce comparateur supervisé figé, le travail
-principal portera sur l'évaluation comparative locale ; les itérations sur
-CAMELYON16 constituent donc un moyen de stabiliser le protocole, et non la
-finalité de la thèse.
+interprétation prudente. Le jeu `test_final` est resté fermé pendant cette
+sélection. Il sera évalué une seule fois avec le checkpoint et la règle figés,
+sans nouvelle adaptation. Le travail principal portera ensuite sur
+l'évaluation comparative locale ; les itérations sur CAMELYON16 constituent
+donc un moyen de stabiliser le protocole, et non la finalité de la thèse.
 
 ### Étude comparative principale sur les lames du service
 

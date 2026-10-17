@@ -1,6 +1,6 @@
 # CAMELYON16 Metastasis Detection Project State
 
-Last updated: 2026-09-13
+Last updated: 2026-10-17
 
 ## Project Goal
 
@@ -9,7 +9,28 @@ CAMELYON16 whole-slide images (WSI). The current implementation uses a
 patch-level ResNet18 classifier, WSI-level inference, heatmap visualization,
 and WSI-level decision rules based on connected components of positive patches.
 
-The current most useful model is `iter2`.
+The supervised comparator is now frozen as `iter8`, with a patch threshold of
+0.25 and a minimum connected component of one patch. This operating point was
+selected before final-test inference because it detected all 19 tumor WSI in
+validation; its validation specificity is 0.276. The once-only `test_final`
+inference is resumable and must not be used for further tuning.
+
+## Current Frozen Decision
+
+- Model: `models/best_resnet18_patch_iter8.pt`
+- Checkpoint SHA-256:
+  `00c243996e6ea1ae402a4be709624f2d1a7a4d4e3f7d0d9a9c675f517b7b2eed`
+- WSI rule: patch probability at least 0.25 and at least one positive patch
+- Validation: sensitivity 1.000, specificity 0.276, 19 TP, 21 FP, 0 FN, 8 TN
+- Frozen specification:
+  `outputs/supervised_comparator_freeze/freeze_decision.json`
+- Final-test runner: `src/32_run_frozen_final_test.py`
+
+The targeted junior review of 36 sites on `tumor_071`, `tumor_074`, and
+`tumor_096` found tumor at the center of 28 of 30 high-drop sites. The loss of
+signal after negative enrichment therefore cannot be explained mainly by
+off-tumor sampling. No further negative-only hard-mining iteration is planned
+before the final evaluation.
 
 ## Environment
 
@@ -87,7 +108,7 @@ Legacy scripts were moved to `src/legacy/`.
 
 ## Checkpoints
 
-The four experiment checkpoints were trained:
+The experiment checkpoints available are:
 
 - `models/best_resnet18_patch_baseline.pt`
 - `models/best_resnet18_patch_iter1.pt`
@@ -96,10 +117,13 @@ The four experiment checkpoints were trained:
 - `models/best_resnet18_patch_iter4.pt`
 - `models/best_resnet18_patch_iter5.pt`
 - `models/best_resnet18_patch_iter6.pt`
+- `models/best_resnet18_patch_iter7.pt`
+- `models/best_resnet18_patch_iter8.pt`
 
-`models/best_resnet18_patch.pt` was also updated to the latest iter3 checkpoint
-during the previous training run, but WSI evaluation is currently centered on
-`best_resnet18_patch_iter2.pt`.
+`models/best_resnet18_patch.pt` was updated to the iter3 checkpoint during an
+earlier run. The frozen final evaluation uses
+`models/best_resnet18_patch_iter8.pt` explicitly and does not rely on this
+generic alias.
 
 ## Patch-Level Results
 
