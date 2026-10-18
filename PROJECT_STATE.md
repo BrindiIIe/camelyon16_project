@@ -1,6 +1,6 @@
 # CAMELYON16 Metastasis Detection Project State
 
-Last updated: 2026-10-17
+Last updated: 2026-10-18
 
 ## Project Goal
 
@@ -1545,3 +1545,24 @@ The pack is in `portable_review_packs/iter8_targeted_histology_review/` and can
 be regenerated with `src/29_prepare_iter8_histology_review.py`. These are
 validation images for diagnostic review only and must not enter training.
 No `test_final` slide was accessed.
+
+### Iter9 Hard-Positive Experiment Prepared (2026-10-18)
+
+The Iter9 protocol was frozen before candidate extraction in
+`outputs/iter9_hard_positive_protocol.md`. The Iter8 checkpoint was applied to
+all annotated tumor cores from the 86 tumor WSI in the training split. Mining
+completed successfully and selected 120 candidates from 70 slides, with at
+most two selected sites per slide after the global cap was reached. Candidate
+probabilities range from approximately 4.25e-10 to 0.1515; all are below the
+pre-specified 0.25 threshold. Validation and `test_final` data were excluded.
+
+The portable review pack is
+`portable_review_packs/iter9_hard_positive_review/`. Its `review.html` form
+requires diagnosis, dominant pattern, image quality, confidence, and an
+explicit inclusion decision for every site. `src/35_prepare_iter9_dataset.py`
+will accept only confirmed tumor with interpretable image quality,
+medium/high confidence, no annotation-edge pattern, and
+`include_as_hard_positive=yes`. It then creates Iter9 from Iter8 without
+adding hard negatives. The Iter9 training target is registered in
+`src/03_train_model.py`, but dataset creation and training remain pending the
+completed review.

@@ -61,6 +61,10 @@ EXPERIMENTS = {
         "train_dir": PROJECT_ROOT / "data/patches_iter8/train",
         "model_path": PROJECT_ROOT / "models/best_resnet18_patch_iter8.pt",
     },
+    "iter9": {
+        "train_dir": PROJECT_ROOT / "data/patches_iter9/train",
+        "model_path": PROJECT_ROOT / "models/best_resnet18_patch_iter9.pt",
+    },
 }
 
 VAL_DIR = PROJECT_ROOT / "data/patches_base/val"
